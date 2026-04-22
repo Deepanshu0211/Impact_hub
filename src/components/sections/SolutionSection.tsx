@@ -6,87 +6,84 @@ import { BrainCircuit, Image as ImageIcon, Map, HeartHandshake } from "lucide-re
 export default function SolutionSection() {
   const features = [
     {
-      icon: <BrainCircuit className="w-8 h-8 text-blue-400" />,
+      icon: <BrainCircuit className="w-7 h-7 text-indigo-400" />,
       title: "AI Data Extraction",
-      description: "Messy reports become structured needs automatically.",
-      color: "from-blue-500/20 to-blue-600/5",
-      border: "hover:border-blue-500/30"
+      description: "Messy reports become structured needs automatically using NLP engines.",
+      gradient: "from-indigo-500/15 to-indigo-600/5",
+      borderHover: "hover:border-indigo-500/25",
+      iconBg: "group-hover:bg-indigo-500/15 group-hover:border-indigo-500/30",
     },
     {
-      icon: <ImageIcon className="w-8 h-8 text-purple-400" />,
+      icon: <ImageIcon className="w-7 h-7 text-violet-400" />,
       title: "Vision Damage Analysis",
-      description: "Upload images for instant hazard severity grading.",
-      color: "from-purple-500/20 to-purple-600/5",
-      border: "hover:border-purple-500/30"
+      description: "Upload images for instant hazard severity grading via computer vision.",
+      gradient: "from-violet-500/15 to-violet-600/5",
+      borderHover: "hover:border-violet-500/25",
+      iconBg: "group-hover:bg-violet-500/15 group-hover:border-violet-500/30",
     },
     {
-      icon: <Map className="w-8 h-8 text-red-400" />,
+      icon: <Map className="w-7 h-7 text-rose-400" />,
       title: "Live Heatmap Intelligence",
-      description: "Critical zones pulse live on interactive operational maps.",
-      color: "from-red-500/20 to-red-600/5",
-      border: "hover:border-red-500/30"
+      description: "Critical zones pulse live on interactive operational maps in real-time.",
+      gradient: "from-rose-500/15 to-rose-600/5",
+      borderHover: "hover:border-rose-500/25",
+      iconBg: "group-hover:bg-rose-500/15 group-hover:border-rose-500/30",
     },
     {
-      icon: <HeartHandshake className="w-8 h-8 text-green-400" />,
+      icon: <HeartHandshake className="w-7 h-7 text-emerald-400" />,
       title: "Smart Volunteer Matching",
-      description: "Nearest skilled responders are dispatched first.",
-      color: "from-green-500/20 to-green-600/5",
-      border: "hover:border-green-500/30"
+      description: "Nearest skilled responders are automatically dispatched first.",
+      gradient: "from-emerald-500/15 to-emerald-600/5",
+      borderHover: "hover:border-emerald-500/25",
+      iconBg: "group-hover:bg-emerald-500/15 group-hover:border-emerald-500/30",
     }
   ];
 
   return (
-    <section id="technology" className="py-20 md:py-24 relative bg-[#050505]">
-      {/* Decorative background lines */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
-              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
+    <section id="technology" className="py-16 md:py-20 relative">
+      {/* Subtle dot pattern */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none">
+        <div className="w-full h-full bg-[radial-gradient(circle,_rgba(255,255,255,0.8)_1px,_transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       <div className="container relative z-10 mx-auto px-6 max-w-7xl">
-        <div className="text-center max-w-3xl mx-auto mb-20">
+        <div className="text-center max-w-2xl mx-auto mb-14">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-6"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/[0.06] bg-white/[0.03] mb-5 text-xs font-medium text-gray-400 uppercase tracking-[0.15em]"
           >
-            <span className="text-sm font-medium text-gray-300">The Solution</span>
+            The Solution
           </motion.div>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-            Intelligent <span className="font-serif italic font-light text-blue-400">Orchestration</span>
+          <h2 className="text-3xl md:text-[2.75rem] font-bold tracking-[-0.03em] mb-3 leading-tight">
+            Intelligent{" "}
+            <span className="text-gradient-hero font-serif italic font-light">Orchestration</span>
           </h2>
-          <p className="text-lg text-gray-400">
+          <p className="text-base text-gray-400 leading-relaxed">
             A unified system that processes chaos into clarity, matching needs with resources in record time.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4">
           {features.map((feature, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              whileHover={{ scale: 1.02, rotateX: 2, rotateY: 2 }}
-              className={`glass p-8 rounded-2xl cursor-pointer transition-all duration-300 border border-white/5 ${feature.border} relative overflow-hidden group`}
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              className={`glass p-7 rounded-2xl cursor-pointer card-hover border border-white/[0.04] ${feature.borderHover} relative overflow-hidden group`}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-              
-              <div className="relative z-10 flex items-start gap-6">
-                <div className="p-4 rounded-xl bg-black/50 border border-white/10 backdrop-blur-md">
+              <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+
+              <div className="relative z-10 flex items-start gap-5">
+                <div className={`p-3.5 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-md transition-all duration-300 ${feature.iconBg}`}>
                   {feature.icon}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-semibold mb-2 text-white">{feature.title}</h3>
-                  <p className="text-gray-400 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-xl font-semibold mb-1.5 text-white">{feature.title}</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
                 </div>
               </div>
             </motion.div>
