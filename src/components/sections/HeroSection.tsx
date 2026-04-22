@@ -37,7 +37,7 @@ export default function HeroSection() {
   }, [mouseX, mouseY]);
 
   return (
-    <section className="relative min-h-[95vh] flex items-center justify-center pt-20 pb-16 overflow-hidden">
+    <section className="relative min-h-[100vh] flex items-center justify-center pt-20 pb-16 overflow-hidden">
       {/* Deep Cinematic Lighting */}
       <div className="absolute inset-0 z-[-9999] pointer-events-none">
         <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-30 bg-indigo-600/30 blur-[150px] rounded-full mix-blend-screen animate-pulse" />
@@ -141,7 +141,7 @@ export default function HeroSection() {
           </span>
         </motion.h1>
 
-        {/* Shortened, Punchy PS Subtext */}
+        {/* Shortened, Punchy PS Subtext
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,7 +149,7 @@ export default function HeroSection() {
           className="text-base md:text-lg text-gray-400 mb-10 max-w-xl leading-relaxed text-balance"
         >
           Turn scattered paper reports into real-time heatmaps. Instantly match available volunteers to the most urgent local needs.
-        </motion.p>
+        </motion.p> */}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -166,21 +166,25 @@ export default function HeroSection() {
         </motion.div>
 
         {/* Trust Badges */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 1 }}
-          className="mt-12 flex items-center gap-6 text-xs text-gray-500"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live System
-          </div>
-          <div className="h-3 w-px bg-gray-700" />
-          <div>Open Source</div>
-          <div className="h-3 w-px bg-gray-700" />
-          <div>Built for Impact</div>
-        </motion.div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 1 }}
+        className="mt-12 flex items-center gap-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs text-gray-400 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.18)]"
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live System
+        </div>
+
+        <div className="h-3 w-px bg-white/10" />
+
+        <div>Open Source</div>
+
+        <div className="h-3 w-px bg-white/10" />
+
+        <div>Built for Impact</div>
+      </motion.div>
       </div>
     </section>
   );
