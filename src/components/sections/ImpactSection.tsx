@@ -14,6 +14,11 @@ export default function ImpactSection() {
   return (
     <section id="impact" className="py-20 md:py-24 relative bg-[#050505]">
       <div className="container mx-auto px-6 max-w-7xl">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Proven at <span className="font-serif italic font-light text-blue-400">Scale</span>
+          </h2>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 divide-x divide-white/5">
           {stats.map((stat, index) => (
             <motion.div
