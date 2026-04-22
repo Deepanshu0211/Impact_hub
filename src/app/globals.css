@@ -35,7 +35,7 @@ body {
 /* === RICH BACKGROUND — Deep space gradient with mesh === */
 .rich-bg {
   background:
-    radial-gradient(ellipse 120% 60% at 10% 20%, rgba(99,102,241,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 120% 60% at 10% 20%, rgba(65, 65, 95, 0.12) 0%, transparent 50%),
     radial-gradient(ellipse 100% 50% at 90% 80%, rgba(139,92,246,0.10) 0%, transparent 50%),
     radial-gradient(ellipse 80% 40% at 50% 0%, rgba(34,211,238,0.06) 0%, transparent 50%),
     linear-gradient(180deg, #060612 0%, #0a0a1a 40%, #080818 60%, #060612 100%);
@@ -87,14 +87,14 @@ body {
 }
 
 .text-gradient-blue {
-  background: linear-gradient(135deg, #818cf8, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #333338, #66676d, #272629);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-hero {
-  background: linear-gradient(135deg, #e0e7ff 0%, #818cf8 40%, #c084fc 70%, #f0abfc 100%);
+  background: linear-gradient(135deg, #fff 0%, rgb(255, 255, 255) 40%, #d5d1da 70%, rgb(58, 54, 54) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

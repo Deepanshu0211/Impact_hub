@@ -39,13 +39,19 @@ export default function HeroSection() {
   return (
     <section className="relative min-h-[100vh] flex items-center justify-center pt-20 pb-16 overflow-hidden">
       {/* Deep Cinematic Lighting */}
-      <div className="absolute inset-0 z-[-9999] pointer-events-none">
-        <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-30 bg-indigo-600/30 blur-[150px] rounded-full mix-blend-screen animate-pulse" />
-        <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-25 bg-violet-600/30 blur-[120px] rounded-full mix-blend-screen" style={{ animationDelay: "2s" }} />
-        <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] opacity-15 bg-cyan-500/20 blur-[100px] rounded-full mix-blend-screen" />
-        {/* Subtle grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_70%_70%_at_50%_50%,#000_20%,transparent_100%)]" />
-      </div>
+     <div className="absolute inset-0 z-[-9999] pointer-events-none">
+          {/* Dark side vignettes */}
+          <div className="absolute inset-y-0 left-0 w-[30%] bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-black/80 via-black/50 to-transparent" />
+
+          {/* Existing glow effects */}
+          <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-20 bg-white/10 blur-[150px] rounded-full animate-pulse" />
+          <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-15 bg-gray-500/10 blur-[120px] rounded-full" style={{ animationDelay: "2s" }} />
+          <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] opacity-10 bg-white/5 blur-[100px] rounded-full" />
+
+          {/* Subtle grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_70%_70%_at_50%_50%,#000_20%,transparent_100%)]" />
+        </div>
 
       {/* Floating 3D Objects (PS Context) */}
       <div
