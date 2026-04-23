@@ -2,14 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight, Activity, Map as MapIcon, BrainCircuit, BarChart3, AlertTriangle, Users, LogOut, Moon, Sun } from "lucide-react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { createClient } from '@/lib/supabase/client';
+import { useTheme } from "@/components/providers/ThemeProvider";
 
-const navLinks = [
+const defaultLinks = [
   { href: "#features", label: "Features" },
   { href: "#technology", label: "Technology" },
   { href: "#impact", label: "Impact" },
   { href: "#roadmap", label: "Roadmap" },
+];
+
+const ngoLinks = [
+  { href: "/ngo-dashboard", label: "Dashboard", icon: Activity },
+  { href: "/ngo-dashboard#submit", label: "Submit Report", icon: AlertTriangle },
+  { href: "/live-map", label: "Live Map", icon: MapIcon },
+  { href: "/ai-engine", label: "AI Engine", icon: BrainCircuit },
+];
+
+const volunteerLinks = [
+  { href: "/volunteer-dashboard", label: "Dashboard", icon: Activity },
+  { href: "/volunteer-dashboard#missions", label: "Missions", icon: MapIcon },
+  { href: "/live-map", label: "Live Map", icon: MapIcon },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 export default function Navbar() {
@@ -18,6 +35,36 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+
+  // Auth State
+  const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const supabase = createClient();
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setRole(null);
+    setIsDropdownOpen(false);
+    router.push("/login");
+  };
+
+  // Re-fetch user on mount and when pathname changes
+  const pathname = usePathname();
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        if (profile) setRole(profile.role);
+      }
+    }
+    getUser();
+  }, [supabase, pathname]);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 30);
@@ -36,7 +83,7 @@ export default function Navbar() {
       { threshold: 0.3 }
     );
 
-    navLinks.forEach((link) => {
+    defaultLinks.forEach((link) => {
       const el = document.querySelector(link.href);
       if (el) observer.observe(el);
     });
@@ -44,31 +91,33 @@ export default function Navbar() {
     return () => observer.disconnect();
   }, []);
 
+  const navLinks = role === 'ngo' ? ngoLinks : role === 'volunteer' ? volunteerLinks : defaultLinks;
+
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4 pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4 pointer-events-none font-helvetica">
         <motion.nav
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           className={`pointer-events-auto transition-all duration-700 ease-out w-full rounded-full ${
             isScrolled
-              ? "max-w-3xl py-2 px-2 bg-white/[0.04] border border-white/[0.06] backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.4)]"
-              : "max-w-5xl py-3 px-6 bg-transparent"
+              ? "max-w-4xl py-2 px-2 bg-foreground/[0.04] border border-foreground/[0.06] backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.4)]"
+              : "max-w-6xl py-3 px-6 bg-transparent"
           }`}
         >
           <div className={`flex items-center justify-between w-full ${isScrolled ? "px-3" : ""}`}>
-            {/* Logo — clean, no glow chaos */}
+            {/* Logo */}
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center group-hover:rotate-45 transition-transform duration-500 ease-out">
-                <div className="w-2 h-2 bg-[#060612] rounded-sm" />
+              <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center group-hover:rotate-45 transition-transform duration-500 ease-out">
+                <div className="w-2 h-2 bg-background rounded-sm" />
               </div>
-              <span className="font-semibold text-[15px] tracking-tight text-white">
+              <span className="font-semibold text-[15px] tracking-tight text-foreground">
                 Impact Hub
               </span>
             </Link>
 
-            {/* Desktop Nav — floating links with underline cursor */}
+            {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-0">
               {navLinks.map((link) => {
                 const isActive = activeSection === link.href;
@@ -80,16 +129,16 @@ export default function Navbar() {
                     href={link.href}
                     onMouseEnter={() => setHoveredLink(link.href)}
                     onMouseLeave={() => setHoveredLink(null)}
-                    className={`relative px-4 py-2 text-[13px] font-medium transition-colors duration-300 ${
-                      isActive ? "text-white" : "text-gray-500 hover:text-gray-200"
+                    className={`relative px-4 py-2 text-[13px] font-medium transition-colors duration-300 flex items-center gap-1.5 ${
+                      isActive ? "text-foreground" : "text-accent-dim hover:text-gray-200"
                     }`}
                   >
+                    {link.icon && <link.icon size={14} className={isActive ? "text-foreground" : "text-accent-dim"} />}
                     {link.label}
-                    {/* Underline indicator — follows hover, falls back to active */}
                     {(isActive || isHovered) && (
                       <motion.div
                         layoutId="navUnderline"
-                        className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-[2px] w-4 bg-white rounded-full"
+                        className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-[2px] w-4 bg-foreground rounded-full"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
@@ -98,26 +147,85 @@ export default function Navbar() {
               })}
             </div>
 
-            {/* Right side — minimal CTA */}
+            {/* Right side */}
             <div className="hidden md:flex items-center gap-5">
-              <Link
-                href="/login"
-                className="text-[13px] font-medium text-gray-500 hover:text-white transition-colors duration-300"
+              <button 
+                onClick={toggleTheme} 
+                className="p-1.5 rounded-full hover:bg-foreground/5 transition-colors text-foreground"
+                aria-label="Toggle theme"
               >
-                Sign in
-              </Link>
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-1.5 text-[13px] font-medium text-white border border-white/20 rounded-full px-4 py-1.5 hover:bg-white hover:text-[#060612] transition-all duration-300"
-              >
-                Launch
-                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-300" />
-              </Link>
+                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+
+              {!user ? (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-[13px] font-medium text-accent-muted hover:text-foreground transition-colors duration-300"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="group flex items-center gap-1.5 text-[13px] font-medium text-foreground border border-foreground/20 rounded-full px-4 py-1.5 hover:bg-foreground hover:text-background transition-all duration-300"
+                  >
+                    Launch
+                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-300" />
+                  </Link>
+                </>
+              ) : (
+                <div className="relative flex items-center gap-3">
+                  <div className="hidden sm:flex flex-col items-end mr-1">
+                    <span className="text-[11px] font-semibold text-foreground">{user?.user_metadata?.full_name || 'User'}</span>
+                    <span className="text-[9px] text-accent-muted uppercase tracking-widest">{role || 'Setup Required'}</span>
+                  </div>
+                  {/* WRAPPER for Hover to prevent gap issues */}
+                  <div 
+                    className="relative pb-4 -mb-4" 
+                    onMouseEnter={() => setIsDropdownOpen(true)}
+                    onMouseLeave={() => setIsDropdownOpen(false)}
+                  >
+                    {user?.user_metadata?.avatar_url ? (
+                      <img 
+                        src={user.user_metadata.avatar_url} 
+                        alt="Avatar" 
+                        className="w-8 h-8 rounded-full border border-foreground/20 hover:scale-105 transition-transform cursor-pointer relative z-10" 
+                      />
+                    ) : (
+                      <div 
+                        className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-600 to-gray-400 border border-foreground/20 hover:scale-105 transition-transform cursor-pointer relative z-10" 
+                      />
+                    )}
+
+                    <AnimatePresence>
+                      {isDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 0, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-10 mt-1 w-48 rounded-xl bg-background border border-foreground/[0.08] shadow-2xl overflow-hidden backdrop-blur-xl z-20"
+                        >
+                          <div className="p-1">
+                            <button
+                              onClick={handleSignOut}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-foreground/[0.04] rounded-lg transition-colors text-left"
+                            >
+                              <LogOut size={16} />
+                              Sign out
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden relative w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              className="md:hidden relative w-9 h-9 flex items-center justify-center text-accent-muted hover:text-foreground transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <AnimatePresence mode="wait">
@@ -136,7 +244,7 @@ export default function Navbar() {
         </motion.nav>
       </div>
 
-      {/* Mobile Menu — slide down, no heavy glass */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
@@ -145,7 +253,7 @@ export default function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-background/50 backdrop-blur-sm"
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
@@ -154,8 +262,22 @@ export default function Navbar() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.98 }}
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="fixed top-20 left-4 right-4 z-50 bg-[#0c0c1a]/95 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 max-w-md mx-auto"
+              className="fixed top-20 left-4 right-4 z-50 bg-background/95 backdrop-blur-xl border border-foreground/[0.06] rounded-2xl p-5 max-w-md mx-auto"
             >
+              {user && (
+                <div className="flex items-center gap-3 mb-5 pb-5 border-b border-foreground/[0.04]">
+                  {user?.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-10 h-10 rounded-full border border-foreground/20" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-600 to-gray-400 border border-foreground/20" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-foreground">{user?.user_metadata?.full_name || 'User'}</span>
+                    <span className="text-[10px] text-accent-dim uppercase tracking-widest">{role || 'Setup Required'}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1">
                 {navLinks.map((link, i) => (
                   <motion.div
@@ -166,36 +288,67 @@ export default function Navbar() {
                   >
                     <Link
                       href={link.href}
-                      className={`flex items-center px-3 py-2.5 rounded-lg text-[15px] font-medium transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-[15px] font-medium transition-colors ${
                         activeSection === link.href
-                          ? "text-white bg-white/[0.05]"
-                          : "text-gray-400 hover:text-white hover:bg-white/[0.03]"
+                          ? "text-foreground bg-foreground/[0.05]"
+                          : "text-accent-muted hover:text-foreground hover:bg-foreground/[0.03]"
                       }`}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
+                      {link.icon && <link.icon size={16} />}
                       {link.label}
                     </Link>
                   </motion.div>
                 ))}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-white/[0.04] flex items-center gap-3">
-                <Link
-                  href="/login"
-                  className="flex-1 text-center text-sm text-gray-400 hover:text-white py-2.5 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-full border border-white/20 py-2.5 text-sm font-medium text-white hover:bg-white hover:text-[#060612] transition-all"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Launch
-                  <ArrowRight size={13} />
-                </Link>
-              </div>
+              {user && (
+                <div className="mt-4 pt-4 border-t border-foreground/[0.04] flex gap-2">
+                  <button
+                    onClick={toggleTheme}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[15px] font-medium text-foreground hover:bg-foreground/5 transition-colors border border-foreground/10"
+                  >
+                    {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+                    {theme === "light" ? "Dark Mode" : "Light Mode"}
+                  </button>
+                  <button
+                    onClick={() => { setIsMobileMenuOpen(false); handleSignOut(); }}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[15px] font-medium text-red-500 hover:bg-red-500/10 transition-colors border border-red-500/10"
+                  >
+                    <LogOut size={16} />
+                    Sign out
+                  </button>
+                </div>
+              )}
+
+              {!user && (
+                <div className="mt-4 pt-4 border-t border-foreground/[0.04] flex flex-col gap-3">
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[15px] font-medium text-foreground hover:bg-foreground/5 transition-colors border border-foreground/10"
+                  >
+                    {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+                    {theme === "light" ? "Dark Mode" : "Light Mode"}
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href="/login"
+                      className="flex-1 text-center text-sm text-accent-muted hover:text-foreground py-2.5 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-full border border-foreground/20 py-2.5 text-sm font-medium text-foreground hover:bg-foreground hover:text-background transition-all"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Launch
+                      <ArrowRight size={13} />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </>
         )}

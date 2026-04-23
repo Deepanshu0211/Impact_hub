@@ -10,7 +10,7 @@ export default function FinalCTASection() {
     <section className="relative py-16 md:py-20">
       {/* Soft glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/[0.04] blur-3xl" />
       </div>
 
       <div className="container relative z-10 mx-auto max-w-3xl px-6">
@@ -19,9 +19,9 @@ export default function FinalCTASection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-10 text-center backdrop-blur-xl md:px-10"
+          className="rounded-3xl border border-foreground/10 bg-foreground/[0.03] px-6 py-10 text-center backdrop-blur-xl md:px-10"
         >
-        <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.05] text-white max-w-xl mx-auto">
+        <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] leading-[1.05] text-foreground max-w-xl mx-auto">
           <span className="font-sans">
             Faster Response.
           </span>
@@ -31,15 +31,15 @@ export default function FinalCTASection() {
           </span>
         </h2>
 
-          <p className="mx-auto mt-4 max-w-lg text-sm md:text-base leading-relaxed text-white/60">
+          <p className="mx-auto mt-4 max-w-lg text-sm md:text-base leading-relaxed text-foreground/60">
             Coordinate teams, manage resources, and respond faster when every second matters.
           </p>
 
           <div className="mt-7 flex justify-center">
             <MagneticButton>
               <Link
-                href="/dashboard"
-                className="group inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-[#060612] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                href="/login"
+                className="group inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Launch Dashboard
                 <ArrowRight

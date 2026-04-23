@@ -53,7 +53,7 @@ export default function PageLoader({ children }: { children: React.ReactNode }) 
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                  className="w-16 h-16 rounded-2xl border border-white/[0.08]"
+                  className="w-16 h-16 rounded-2xl border border-foreground/[0.08]"
                 />
 
                 {/* Inner pulsing square */}
@@ -63,7 +63,7 @@ export default function PageLoader({ children }: { children: React.ReactNode }) 
                   transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                   className="absolute inset-0 flex items-center justify-center"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center">
                     <motion.div
                       animate={{ scale: [1, 0.7, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
@@ -90,12 +90,12 @@ export default function PageLoader({ children }: { children: React.ReactNode }) 
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="flex flex-col items-center gap-4"
               >
-                <span className="text-sm font-medium tracking-[0.2em] text-white/40 uppercase">
+                <span className="text-sm font-medium tracking-[0.2em] text-foreground/40 uppercase">
                   Impact Hub
                 </span>
 
                 {/* Progress bar */}
-                <div className="w-40 h-[2px] bg-white/[0.06] rounded-full overflow-hidden">
+                <div className="w-40 h-[2px] bg-foreground/[0.06] rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-gradient-to-r from-indigo-400 to-white rounded-full"
                     style={{ width: `${progress}%` }}
@@ -103,7 +103,7 @@ export default function PageLoader({ children }: { children: React.ReactNode }) 
                   />
                 </div>
 
-                <span className="text-[11px] font-mono text-white/20 tabular-nums">
+                <span className="text-[11px] font-mono text-foreground/20 tabular-nums">
                   {progress}%
                 </span>
               </motion.div>

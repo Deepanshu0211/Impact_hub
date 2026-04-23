@@ -1,25 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --background: #060612;
-  --foreground: #f0f0f5;
-  --accent-blue: #6366f1;
-  --accent-cyan: #22d3ee;
-  --accent-violet: #8b5cf6;
-  --accent-rose: #f43f5e;
+  --background: #fdfdfd; /* Very light grey/white */
+  --foreground: #111111; /* Dark text */
+  --accent: #000000;
+  --accent-dim: #555555; 
+  --accent-muted: #888888; 
+  --glass-bg: rgba(0, 0, 0, 0.03);
+  --glass-border: rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --background: #09090b; /* Zinc 950 - a very dark grey instead of pure black */
+  --foreground: #f4f4f5; /* Zinc 100 */
+  --accent: #ffffff;
+  --accent-dim: #a1a1aa; /* Zinc 400 */
+  --accent-muted: #71717a; /* Zinc 500 */
   --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-accent-blue: var(--accent-blue);
-  --color-accent-cyan: var(--accent-cyan);
-  --color-accent-violet: var(--accent-violet);
-  --color-accent-rose: var(--accent-rose);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-muted: var(--accent-muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Overrides to make hardcoded Tailwind classes reactive to theme */
+  --color-white: var(--foreground);
+  --color-black: var(--background);
+  --color-gray-400: var(--accent-muted);
+  --color-gray-500: var(--accent-muted);
+  --color-gray-900: var(--glass-bg);
 }
 
 /* === BASE === */
@@ -32,13 +47,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* === RICH BACKGROUND — Deep space gradient with mesh === */
+/* === RICH BACKGROUND — Light Mode theme === */
 .rich-bg {
   background:
-    radial-gradient(ellipse 120% 60% at 10% 20%, rgba(65, 65, 95, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 50% at 90% 80%, rgba(139,92,246,0.10) 0%, transparent 50%),
-    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(34,211,238,0.06) 0%, transparent 50%),
-    linear-gradient(180deg, #060612 0%, #0a0a1a 40%, #080818 60%, #060612 100%);
+    radial-gradient(ellipse 120% 60% at 10% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 50% at 90% 80%, rgba(0, 0, 0, 0.015) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(0, 0, 0, 0.01) 0%, transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #f4f4f5 40%, #fafafa 60%, #ffffff 100%);
+}
+
+.dark .rich-bg {
+  background:
+    radial-gradient(ellipse 120% 60% at 10% 20%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 50% at 90% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255, 255, 255, 0.015) 0%, transparent 50%),
+    linear-gradient(180deg, #09090b 0%, #111113 40%, #0a0a0c 60%, #09090b 100%);
 }
 
 /* === TYPOGRAPHY === */
@@ -50,7 +73,7 @@ body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-/* === GLASSMORPHISM — Premium layered glass === */
+/* === GLASSMORPHISM — Premium monochrome layered glass === */
 .glass {
   background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
   backdrop-filter: blur(16px) saturate(1.6);
@@ -69,7 +92,7 @@ body {
 }
 
 .glass-navbar {
-  background: linear-gradient(135deg, rgba(10,10,30,0.7) 0%, rgba(6,6,18,0.85) 100%);
+  background: linear-gradient(135deg, rgba(10,10,10,0.7) 0%, rgba(0,0,0,0.85) 100%);
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -80,21 +103,21 @@ body {
 
 /* === GRADIENT TEXT === */
 .text-gradient {
-  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-blue {
-  background: linear-gradient(135deg, #333338, #66676d, #272629);
+  background: linear-gradient(135deg, #666 0%, #999 50%, #555 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-hero {
-  background: linear-gradient(135deg, #fff 0%, rgb(255, 255, 255) 40%, #d5d1da 70%, rgb(58, 54, 54) 100%);
+  background: linear-gradient(135deg, #fff 0%, #ddd 40%, #999 70%, #444 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -139,9 +162,9 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(99,102,241,0.3) 25%,
-    rgba(139,92,246,0.3) 50%,
-    rgba(99,102,241,0.3) 75%,
+    rgba(255,255,255,0.15) 25%,
+    rgba(200,200,200,0.2) 50%,
+    rgba(255,255,255,0.15) 75%,
     transparent 100%
   );
   background-size: 200% 100%;
@@ -169,7 +192,7 @@ body {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #818cf8;
+  background: #ffffff;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -189,7 +212,7 @@ body {
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa, #6366f1);
+  background: linear-gradient(135deg, #fff, #aaa, #fff, #aaa);
   background-size: 300% 300%;
   animation: shimmer-border 3s linear infinite;
   z-index: -1;
@@ -202,7 +225,7 @@ body {
 }
 
 .glow-button:hover {
-  box-shadow: 0 0 30px rgba(99,102,241,0.4), 0 0 60px rgba(139,92,246,0.2);
+  box-shadow: 0 0 30px rgba(255,255,255,0.15), 0 0 60px rgba(200,200,200,0.08);
 }
 
 /* === CARD HOVER LIFT === */
@@ -214,7 +237,7 @@ body {
   transform: translateY(-4px);
   box-shadow:
     0 20px 40px rgba(0,0,0,0.4),
-    0 0 0 1px rgba(99,102,241,0.15);
+    0 0 0 1px rgba(255,255,255,0.1);
 }
 
 /* === SCROLLBAR === */
@@ -222,24 +245,24 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #060612;
+  background: #000;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(180deg, #555 0%, #333 100%);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #818cf8 0%, #a78bfa 100%);
+  background: linear-gradient(180deg, #777 0%, #555 100%);
 }
 
 /* === SELECTION === */
 ::selection {
-  background: rgba(99,102,241,0.4);
+  background: rgba(255,255,255,0.25);
   color: #fff;
 }
 
 /* === SECTION DIVIDER GRADIENT === */
 .section-divider {
-  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.3), rgba(139,92,246,0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), rgba(200,200,200,0.15), transparent);
   height: 1px;
 }

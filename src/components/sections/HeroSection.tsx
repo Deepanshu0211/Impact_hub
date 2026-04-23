@@ -38,16 +38,16 @@ export default function HeroSection() {
 
   return (
     <section className="relative min-h-[100vh] flex items-center justify-center pt-20 pb-16 overflow-hidden">
-      {/* Deep Cinematic Lighting */}
+      {/* Deep Cinematic Lighting — Monochrome */}
      <div className="absolute inset-0 z-[-9999] pointer-events-none">
           {/* Dark side vignettes */}
           <div className="absolute inset-y-0 left-0 w-[30%] bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
           <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-black/80 via-black/50 to-transparent" />
 
-          {/* Existing glow effects */}
-          <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-20 bg-white/10 blur-[150px] rounded-full animate-pulse" />
-          <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-15 bg-gray-500/10 blur-[120px] rounded-full" style={{ animationDelay: "2s" }} />
-          <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] opacity-10 bg-white/5 blur-[100px] rounded-full" />
+          {/* Monochrome glow effects */}
+          <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-15 bg-foreground/10 blur-[150px] rounded-full animate-pulse" />
+          <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-10 bg-gray-500/10 blur-[120px] rounded-full" style={{ animationDelay: "2s" }} />
+          <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] opacity-10 bg-foreground/5 blur-[100px] rounded-full" />
 
           {/* Subtle grid */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_70%_70%_at_50%_50%,#000_20%,transparent_100%)]" />
@@ -66,12 +66,12 @@ export default function HeroSection() {
             style={{ x: obj1X, y: obj1Y, translateZ: 100 }}
             animate={{ y: [-15, 15, -15], rotateZ: [-5, 5, -5] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[15%] left-[10%] md:left-[12%] glass-panel p-5 rounded-2xl border border-white/10 shadow-[0_0_40px_rgba(99,102,241,0.1)] w-48 rotate-[-12deg]"
+            className="absolute top-[15%] left-[10%] md:left-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] w-48 rotate-[-12deg]"
           >
-            <FileText className="text-indigo-400/60 w-7 h-7 mb-3" />
-            <div className="w-full h-1.5 bg-white/8 rounded mb-1.5" />
-            <div className="w-3/4 h-1.5 bg-white/8 rounded mb-3" />
-            <div className="text-[9px] text-rose-400/80 font-mono tracking-[0.2em] uppercase">Scattered Data</div>
+            <FileText className="text-accent-muted w-7 h-7 mb-3" />
+            <div className="w-full h-1.5 bg-foreground/8 rounded mb-1.5" />
+            <div className="w-3/4 h-1.5 bg-foreground/8 rounded mb-3" />
+            <div className="text-[9px] text-accent-dim font-mono tracking-[0.2em] uppercase">Scattered Data</div>
           </motion.div>
 
           {/* Object 2: Map Pin / Urgent Need (Top Right) */}
@@ -79,14 +79,14 @@ export default function HeroSection() {
             style={{ x: obj2X, y: obj2Y, translateZ: 150 }}
             animate={{ y: [15, -15, 15], rotateZ: [5, -5, 5] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute top-[22%] right-[5%] md:right-[12%] glass-panel p-5 rounded-2xl border border-rose-500/20 shadow-[0_0_50px_rgba(244,63,94,0.1)] w-52 rotate-[8deg] flex flex-col items-center text-center"
+            className="absolute top-[22%] right-[5%] md:right-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_50px_rgba(255,255,255,0.05)] w-52 rotate-[8deg] flex flex-col items-center text-center"
           >
             <div className="relative mb-3">
-              <div className="absolute inset-0 bg-rose-500 blur-xl opacity-40 rounded-full" />
-              <MapPin className="text-rose-400 w-9 h-9 relative z-10 drop-shadow-lg" />
+              <div className="absolute inset-0 bg-foreground blur-xl opacity-20 rounded-full" />
+              <MapPin className="text-gray-300 w-9 h-9 relative z-10 drop-shadow-lg" />
             </div>
-            <div className="text-sm font-bold text-white/90 mb-0.5">Sector 7 Crisis</div>
-            <div className="text-[9px] text-rose-400/80 font-mono tracking-[0.2em] uppercase">Urgent Local Need</div>
+            <div className="text-sm font-bold text-foreground/90 mb-0.5">Sector 7 Crisis</div>
+            <div className="text-[9px] text-accent-dim font-mono tracking-[0.2em] uppercase">Urgent Local Need</div>
           </motion.div>
 
           {/* Object 3: Volunteer Match (Bottom Center/Right) */}
@@ -94,14 +94,14 @@ export default function HeroSection() {
             style={{ x: obj3X, y: obj3Y, translateZ: 200 }}
             animate={{ y: [-10, 10, -10], rotateZ: [-2, 2, -2] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            className="absolute bottom-[18%] right-[18%] md:right-[28%] glass-panel p-4 rounded-full border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)] flex items-center gap-3"
+            className="absolute bottom-[18%] right-[18%] md:right-[28%] glass-panel p-4 rounded-full border border-foreground/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] flex items-center gap-3"
           >
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              <UserCheck className="text-white w-5 h-5" />
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+              <UserCheck className="text-background w-5 h-5" />
             </div>
             <div className="pr-3">
-              <div className="text-xs font-bold text-white/90">Volunteer Matched</div>
-              <div className="text-[9px] text-emerald-400/80 font-mono tracking-[0.2em]">ETA: 4 MINS</div>
+              <div className="text-xs font-bold text-foreground/90">Volunteer Matched</div>
+              <div className="text-[9px] text-accent-muted font-mono tracking-[0.2em]">ETA: 4 MINS</div>
             </div>
           </motion.div>
         </motion.div>
@@ -113,20 +113,20 @@ export default function HeroSection() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] mb-6 backdrop-blur-md shadow-[0_0_25px_rgba(99,102,241,0.15)]"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-foreground/10 bg-foreground/[0.04] mb-6 backdrop-blur-md shadow-[0_0_25px_rgba(255,255,255,0.05)]"
         >
-          <Activity size={14} className="text-indigo-400" />
-          <span className="text-xs font-semibold text-indigo-300 tracking-[0.15em] uppercase">Smart Resource Allocation</span>
+          <Activity size={14} className="text-accent-muted" />
+          <span className="text-xs font-semibold text-gray-300 tracking-[0.15em] uppercase">Smart Resource Allocation</span>
         </motion.div>
 
-        {/* Dynamic Mixed Typography Headline — TIGHT line spacing */}
+        {/* Dynamic Mixed Typography Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-[2.75rem] md:text-[4.5rem] lg:text-[5.5rem] font-bold tracking-[-0.04em] mb-2 leading-[0.82] flex flex-col items-center"
         >
-          <span className="text-white drop-shadow-lg">
+          <span className="text-foreground drop-shadow-lg">
             Unify Scattered Data.
           </span>
 
@@ -147,16 +147,6 @@ export default function HeroSection() {
           </span>
         </motion.h1>
 
-        {/* Shortened, Punchy PS Subtext
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="text-base md:text-lg text-gray-400 mb-10 max-w-xl leading-relaxed text-balance"
-        >
-          Turn scattered paper reports into real-time heatmaps. Instantly match available volunteers to the most urgent local needs.
-        </motion.p> */}
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -164,7 +154,7 @@ export default function HeroSection() {
           className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center"
         >
           <MagneticButton>
-            <Link href="/dashboard" className="group h-12 px-7 rounded-full border border-white/25 text-white font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:bg-white hover:text-[#060612] hover:border-white active:scale-[0.97] w-full sm:w-auto">
+            <Link href="/login" className="group h-12 px-7 rounded-full border border-foreground/25 text-foreground font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:bg-foreground hover:text-background hover:border-foreground active:scale-[0.97] w-full sm:w-auto">
               Launch Prototype
               <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform duration-300" />
             </Link>
@@ -176,18 +166,18 @@ export default function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1 }}
-        className="mt-12 flex items-center gap-6 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-xs text-gray-400 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.18)]"
+        className="mt-12 flex items-center gap-6 rounded-full border border-foreground/10 bg-foreground/[0.04] px-5 py-3 text-xs text-accent-muted backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.18)]"
       >
         <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />
           Live System
         </div>
 
-        <div className="h-3 w-px bg-white/10" />
+        <div className="h-3 w-px bg-foreground/10" />
 
         <div>Open Source</div>
 
-        <div className="h-3 w-px bg-white/10" />
+        <div className="h-3 w-px bg-foreground/10" />
 
         <div>Built for Impact</div>
       </motion.div>

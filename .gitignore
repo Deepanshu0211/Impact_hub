@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.env*
+.AGENTS.md*
+.CLAUDE.md*
+.fix-colors.js*
+.setup-db.js*
+.supabase-schema.sql*
+.full-supabase-schema.sql*
+.full-supabase-schema-no-real-keys.sql*
+
