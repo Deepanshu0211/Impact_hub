@@ -2,27 +2,33 @@
 
 import { useState, useEffect } from "react";
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowRight, Activity, Map as MapIcon, BrainCircuit, BarChart3, AlertTriangle, Users, LogOut, Moon, Sun } from "lucide-react";
+import { Menu, X, ArrowRight, Activity, Map as MapIcon, BrainCircuit, BarChart3, AlertTriangle, Users, LogOut, Moon, Sun, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from "@/components/providers/ThemeProvider";
 
-const defaultLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  icon?: LucideIcon;
+}
+
+const defaultLinks: NavLink[] = [
   { href: "#features", label: "Features" },
   { href: "#technology", label: "Technology" },
   { href: "#impact", label: "Impact" },
   { href: "#roadmap", label: "Roadmap" },
 ];
 
-const ngoLinks = [
+const ngoLinks: NavLink[] = [
   { href: "/ngo-dashboard", label: "Dashboard", icon: Activity },
   { href: "/ngo-dashboard#submit", label: "Submit Report", icon: AlertTriangle },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
   { href: "/ai-engine", label: "AI Engine", icon: BrainCircuit },
 ];
 
-const volunteerLinks = [
+const volunteerLinks: NavLink[] = [
   { href: "/volunteer-dashboard", label: "Dashboard", icon: Activity },
   { href: "/volunteer-dashboard#missions", label: "Missions", icon: MapIcon },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
