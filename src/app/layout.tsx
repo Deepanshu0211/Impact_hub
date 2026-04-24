@@ -31,7 +31,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-background text-foreground relative">
+      <body className="min-h-screen bg-background text-foreground relative" suppressHydrationWarning>
         <ThemeProvider>
           {/* Ultra-subtle Grain Overlay — reduced to 15% for premium feel */}
           <div className="pointer-events-none fixed inset-0 z-[100] h-full w-full opacity-[0.05] mix-blend-multiply dark:mix-blend-overlay dark:opacity-[0.12]" 

@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState({ name: "Admin User", email: "admin@impacthub.org", role: "System Admin", org: "Impact Hub HQ" });
   const [notifSettings, setNotifSettings] = useState({ criticalAlerts: true, aiUpdates: true, volunteerStatus: true, weeklyReports: true, emailDigest: false, smsAlerts: false });
-  const [aiSettings, setAiSettings] = useState({ autoProcess: true, autoDispatch: false, confidenceThreshold: 75, model: "gemini-2.0-flash" });
+  const [aiSettings, setAiSettings] = useState({ autoProcess: true, autoDispatch: false, confidenceThreshold: 75, model: "gemini-2.5-flash" });
 
   const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
 

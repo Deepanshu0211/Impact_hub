@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -48,9 +48,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
 
-  useState(() => {
+  useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  });
+  }, [supabase.auth]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
