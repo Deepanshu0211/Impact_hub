@@ -2,7 +2,7 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
-import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu } from "lucide-react";
+import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu, Sparkles, BrainCircuit } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,18 +11,22 @@ export default function NGODashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [incidents, setIncidents] = useState<any[]>([]);
+  const [extractions, setExtractions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const supabase = createClient();
 
   useEffect(() => {
-    fetchIncidents();
+    fetchData();
     
-    // Set up realtime subscription
+    // Set up realtime subscriptions
     const channel = supabase
       .channel('public:incidents')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, payload => {
-        fetchIncidents();
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'nlp_extractions' }, payload => {
+        fetchData();
       })
       .subscribe();
       
@@ -31,13 +35,30 @@ export default function NGODashboard() {
     };
   }, []);
 
-  const fetchIncidents = async () => {
-    const { data, error } = await supabase
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Fetch incidents
+    const { data: incData } = await supabase
       .from('incidents')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(10);
       
-    if (data) setIncidents(data);
+    if (incData) setIncidents(incData);
+
+    // Fetch extractions for this user
+    if (user) {
+      const { data: extData } = await supabase
+        .from('nlp_extractions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      if (extData) setExtractions(extData);
+    }
+    
     setLoading(false);
   };
 
@@ -47,11 +68,8 @@ export default function NGODashboard() {
     
     setIsSubmitting(true);
     
-    // 1. Get user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // 2. Submit to our AI Analysis API first
     try {
+      // 1. Submit to our AI Analysis API
       const response = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,21 +78,11 @@ export default function NGODashboard() {
       
       const aiData = await response.json();
       
-      // 3. Save to Supabase
-      const { data, error } = await supabase.from('incidents').insert([{
-        created_by: user?.id,
-        location: aiData.location || "Unknown",
-        type: aiData.resource_needed || "General Support",
-        priority: aiData.priority?.toUpperCase() || "NORMAL",
-        status: 'Processing',
-        affected: aiData.affected_count || "Unknown",
-        description: reportText
-      }]);
-      
-      if (!error) {
+      if (response.ok) {
         setSubmitted(true);
         setReportText("");
         setTimeout(() => setSubmitted(false), 3000);
+        fetchData(); // Refresh immediately after submission
       }
     } catch (err) {
       console.error("Error submitting:", err);
@@ -97,24 +105,24 @@ export default function NGODashboard() {
 
   return (
     <DashboardLayout role="ngo">
-      <div className="p-6 md:p-8 max-w-7xl mx-auto font-helvetica">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto font-helvetica space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 relative z-10">
           <div>
-            <h1 className="text-2xl font-bold mb-1 tracking-tight">NGO Command Center</h1>
-            <p className="text-sm text-accent-dim">Submit reports, track needs, manage resource allocation.</p>
+            <h1 className="text-3xl font-bold mb-1 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">NGO Command Center</h1>
+            <p className="text-sm text-accent-dim">Real-time resource allocation and automated AI report parsing.</p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-accent-dim">
-            <div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />
-            System Online (Live DB)
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] text-xs text-foreground font-medium shadow-lg backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]" />
+            System Online
           </div>
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 relative z-10">
           {[
             { label: "Active Reports", value: incidents.length.toString(), icon: FileText, trend: "Live Tracking" },
-            { label: "Processing", value: incidents.filter(i => i.status === 'Processing').length.toString(), icon: Cpu, trend: "AI analyzing" },
+            { label: "AI Processed", value: extractions.length.toString(), icon: BrainCircuit, trend: "Entities Extracted" },
             { label: "Volunteers Active", value: "156", icon: Activity, trend: "+12 online" },
             { label: "Avg Response", value: "6.2m", icon: Clock, trend: "-1.8m faster" },
           ].map((stat, i) => (
@@ -123,137 +131,180 @@ export default function NGODashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className="p-5 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06] hover:border-foreground/[0.1] transition-colors group"
+              className="relative p-6 rounded-2xl bg-gradient-to-b from-foreground/[0.04] to-foreground/[0.01] border border-foreground/[0.08] hover:border-foreground/[0.15] transition-all duration-300 group overflow-hidden glass-panel"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-accent-dim font-medium uppercase tracking-wider">{stat.label}</span>
-                <stat.icon size={15} className="text-gray-600 group-hover:text-accent-muted transition-colors" />
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <stat.icon size={48} />
               </div>
-              <div className="text-2xl font-bold tracking-tight mb-1">{stat.value}</div>
-              <div className="text-[11px] text-gray-600">{stat.trend}</div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs text-accent-dim font-bold uppercase tracking-widest">{stat.label}</span>
+                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center border border-foreground/10 group-hover:scale-110 transition-transform">
+                  <stat.icon size={14} className="text-foreground" />
+                </div>
+              </div>
+              <div className="text-4xl font-bold tracking-tight mb-2 drop-shadow-sm">{stat.value}</div>
+              <div className="text-xs text-accent-muted font-medium flex items-center gap-1.5">
+                <TrendingUp size={12} className="text-green-400" />
+                {stat.trend}
+              </div>
             </motion.div>
           ))}
         </div>
 
-        <div className="grid xl:grid-cols-5 gap-6">
-          {/* Report Submission Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="xl:col-span-2 p-6 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06]"
-          >
-            <h2 className="font-semibold mb-4 flex items-center gap-2 tracking-tight">
-              <Upload size={16} className="text-accent-muted" />
-              Submit Field Report
-            </h2>
+        <div className="grid xl:grid-cols-3 gap-8 relative z-10">
+          {/* LEFT COL: AI Form & Extractions */}
+          <div className="xl:col-span-1 space-y-6">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="p-6 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-transparent border border-foreground/[0.08] shadow-2xl glass-panel relative overflow-hidden"
+            >
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-foreground/10 blur-[50px] rounded-full pointer-events-none" />
+              <h2 className="font-semibold mb-5 flex items-center gap-2 tracking-tight text-lg">
+                <BrainCircuit size={18} className="text-accent-muted" />
+                AI Field Reporter
+                <Sparkles size={14} className="text-foreground ml-auto" />
+              </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] text-accent-dim uppercase tracking-wider mb-1.5 font-medium">Report Description</label>
-                <textarea
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  placeholder="e.g., 500 people need water in Sector 7, infrastructure damaged..."
-                  className="w-full h-24 px-4 py-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground placeholder:text-gray-600 focus:outline-none focus:border-foreground/15 resize-none transition-all"
-                />
-              </div>
+              <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
+                <div>
+                  <textarea
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    placeholder="Enter raw field data. e.g. '500 people need water in Sector 7 due to flooding...'"
+                    className="w-full h-32 px-4 py-3 rounded-xl bg-background/50 backdrop-blur-md border border-foreground/[0.1] text-sm text-foreground placeholder:text-gray-500 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 resize-none transition-all shadow-inner font-mono"
+                  />
+                </div>
 
-              {/* Image Upload Area */}
-              <div className="border border-dashed border-foreground/[0.08] rounded-xl p-4 text-center hover:border-foreground/15 transition-colors cursor-pointer">
-                <Upload size={20} className="mx-auto text-gray-600 mb-2" />
-                <p className="text-xs text-accent-dim">Drop image for AI damage analysis</p>
-                <p className="text-[10px] text-gray-600 mt-1">PNG, JPG up to 10MB</p>
-              </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !reportText.trim()}
+                  className="w-full h-12 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                >
+                  {isSubmitting ? (
+                    <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-4 h-4 border-2 border-background/20 border-t-black rounded-full" /> Processing with Gemini...</>
+                  ) : submitted ? (
+                    <><CheckCircle2 size={18} /> Analyzed & Logged</>
+                  ) : (
+                    <><Send size={16} className="group-hover:translate-x-1 transition-transform" /> Extract & Dispatch</>
+                  )}
+                </button>
+              </form>
+            </motion.div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting || !reportText.trim()}
-                className="w-full h-11 rounded-xl bg-foreground text-background font-semibold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-4 h-4 border-2 border-background/20 border-t-black rounded-full" />
-                ) : submitted ? (
-                  <><CheckCircle2 size={16} /> Report Logged & Analyzed</>
+            {/* NLP Extractions Mini Feed */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="p-6 rounded-2xl bg-foreground/[0.02] border border-foreground/[0.06] glass-panel"
+            >
+              <h3 className="font-semibold text-sm tracking-tight mb-4 flex items-center justify-between">
+                <span>Recent AI Extractions</span>
+                <span className="text-[10px] bg-foreground/10 px-2 py-0.5 rounded uppercase tracking-widest">Self</span>
+              </h3>
+              <div className="space-y-3">
+                {extractions.length === 0 ? (
+                  <div className="text-xs text-accent-dim text-center py-4">No AI extractions yet.</div>
                 ) : (
-                  <><Send size={14} /> AI Analyze & Submit</>
+                  extractions.map((ext) => (
+                    <div key={ext.id} className="p-3 rounded-lg border border-foreground/[0.04] bg-background/50 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-medium">{ext.extracted_data?.location || "Unknown"}</span>
+                        <span className="text-[9px] text-accent-muted">{getTimeAgo(ext.created_at)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-[9px] font-mono text-gray-300">
+                          {ext.extracted_data?.category}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider ${ext.extracted_data?.priority === 'CRITICAL' ? 'bg-foreground text-background' : 'bg-foreground/10 text-foreground'}`}>
+                          {ext.extracted_data?.priority}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-accent-muted truncate">{ext.raw_text}</div>
+                    </div>
+                  ))
                 )}
-              </button>
-            </form>
-
-            {/* AI Processing Indicator */}
-            <div className="mt-4 p-3 rounded-lg bg-foreground/[0.02] border border-foreground/[0.04]">
-              <div className="flex items-center gap-2 text-xs text-accent-dim mb-2">
-                <Cpu size={12} className="animate-spin" />
-                <span>AI Processing Engine</span>
               </div>
-              <p className="text-[10px] text-gray-600 mt-2">Reports are automatically parsed by Gemini to extract location, needs, and priority.</p>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
 
-          {/* Active Needs Feed */}
+          {/* RIGHT COL: Live Incidents */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="xl:col-span-3 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06] overflow-hidden flex flex-col"
+            className="xl:col-span-2 rounded-2xl bg-gradient-to-b from-foreground/[0.03] to-background border border-foreground/[0.08] shadow-2xl overflow-hidden flex flex-col glass-panel"
           >
-            <div className="p-5 border-b border-foreground/[0.04] flex justify-between items-center">
-              <h2 className="font-semibold tracking-tight flex items-center gap-2">
-                <AlertTriangle size={16} className="text-accent-muted" />
-                Active Needs Feed
+            <div className="p-6 border-b border-foreground/[0.06] flex justify-between items-center bg-foreground/[0.01]">
+              <h2 className="font-semibold tracking-tight flex items-center gap-2 text-lg">
+                <AlertTriangle size={18} className="text-accent-muted" />
+                Network Intelligence Feed
               </h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-accent-dim font-mono">LIVE DATABASE</span>
-                <div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />
+              <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-lg border border-foreground/10">
+                <span className="text-[10px] text-foreground font-mono font-bold tracking-widest">LIVE DATA</span>
+                <div className="w-2 h-2 rounded-full bg-foreground animate-pulse" />
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto min-h-[300px]">
+            <div className="flex-1 overflow-auto p-2">
               {loading ? (
-                 <div className="h-full flex items-center justify-center text-accent-dim text-sm">Loading live data...</div>
+                 <div className="h-64 flex flex-col items-center justify-center text-accent-dim text-sm space-y-4">
+                   <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+                   <span>Syncing global network...</span>
+                 </div>
               ) : incidents.length === 0 ? (
-                 <div className="h-full flex items-center justify-center text-accent-dim text-sm">No incidents reported yet.</div>
+                 <div className="h-64 flex flex-col items-center justify-center text-accent-dim text-sm">
+                   <MapPin size={32} className="opacity-20 mb-3" />
+                   <span>No active incidents detected.</span>
+                 </div>
               ) : (
-                <table className="w-full text-sm text-left">
-                  <thead className="text-[10px] text-gray-600 bg-foreground/[0.01] border-b border-foreground/[0.04] uppercase tracking-wider">
-                    <tr>
-                      <th className="px-5 py-3 font-medium">Location</th>
-                      <th className="px-5 py-3 font-medium">Type</th>
-                      <th className="px-5 py-3 font-medium">Priority</th>
-                      <th className="px-5 py-3 font-medium">Status</th>
-                      <th className="px-5 py-3 font-medium">Affected</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.03]">
-                    {incidents.map((need) => (
-                      <tr key={need.id} className="hover:bg-foreground/[0.02] transition-colors cursor-pointer">
-                        <td className="px-5 py-4">
-                          <div className="font-medium text-foreground text-sm">{need.location}</div>
-                          <div className="text-[10px] text-gray-600 mt-0.5">{getTimeAgo(need.created_at)}</div>
-                        </td>
-                        <td className="px-5 py-4 text-accent-muted text-sm">{need.type}</td>
-                        <td className="px-5 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border ${
+                <div className="space-y-2">
+                  {incidents.map((need, i) => (
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                      key={need.id} 
+                      className="group flex flex-col sm:flex-row gap-4 p-4 rounded-xl hover:bg-foreground/[0.04] border border-transparent hover:border-foreground/[0.06] transition-all cursor-pointer"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="font-bold text-foreground">{need.location}</div>
+                          <span className="text-[10px] text-accent-muted">• {getTimeAgo(need.created_at)}</span>
+                        </div>
+                        <div className="text-sm text-accent-dim mb-2 line-clamp-1">{need.description}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wider border ${
                             need.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20" :
                             need.priority === "HIGH" ? "bg-foreground/[0.06] text-gray-300 border-foreground/10" :
                             "bg-foreground/[0.03] text-accent-dim border-foreground/[0.06]"
                           }`}>
                             {need.priority}
                           </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="flex items-center gap-1.5 text-sm font-medium">
-                            {need.status === "Processing" && <><Cpu size={12} className="animate-spin text-accent-muted" /><span className="text-accent-muted">Processing</span></>}
-                            {need.status === "Dispatched" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" /><span className="text-gray-300">Dispatched</span></>}
-                            {need.status === "Resolved" && <><CheckCircle2 size={13} className="text-accent-dim" /><span className="text-accent-dim">Resolved</span></>}
+                          <span className="px-2 py-1 rounded-md bg-foreground/[0.03] border border-foreground/[0.06] text-[10px] font-medium text-gray-400">
+                            {need.type}
                           </span>
-                        </td>
-                        <td className="px-5 py-4 text-accent-muted font-mono text-sm">{need.affected}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          {need.affected && need.affected !== 'Unknown' && (
+                            <span className="px-2 py-1 rounded-md bg-background border border-foreground/[0.04] text-[10px] font-mono text-accent-muted">
+                              👥 {need.affected}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="sm:text-right flex flex-row sm:flex-col justify-between items-center sm:items-end">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-background border border-foreground/10">
+                          {need.status === "Processing" && <><Cpu size={12} className="animate-spin text-accent-muted" />Processing</>}
+                          {need.status === "Dispatched" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Dispatched</>}
+                          {need.status === "Active" && <><Activity size={12} className="text-accent-muted" />Active</>}
+                          {need.status === "Resolved" && <><CheckCircle2 size={12} className="text-green-500" />Resolved</>}
+                        </span>
+                        <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold group-hover:text-foreground transition-colors mt-2">
+                          View Details &rarr;
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               )}
             </div>
           </motion.div>

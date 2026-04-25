@@ -8,11 +8,24 @@ import { createClient } from '@/lib/supabase/client';
 export default function LoginPage() {
   const supabase = createClient();
 
+  const getURL = () => {
+    let url =
+      process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
+      process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+      
+    // Make sure to include `https://` when not localhost.
+    url = url.startsWith('http') ? url : `https://${url}`;
+    // Make sure to include a trailing `/`.
+    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`;
+    return url;
+  };
+
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getURL()}auth/callback`,
       },
     });
   };
@@ -77,12 +90,12 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          <div className="mt-8 text-center border-t border-foreground/[0.08] pt-6">
+          {/* <div className="mt-8 text-center border-t border-foreground/[0.08] pt-6">
             <p className="text-xs text-accent-dim">
               <Shield size={12} className="inline mr-1.5 -mt-0.5" />
               Secure authentication via Supabase
             </p>
-          </div>
+          </div> */}
         </motion.div>
       </div>
     </div>

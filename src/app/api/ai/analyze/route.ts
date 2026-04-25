@@ -1,11 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
-
-
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +11,9 @@ export async function POST(req: Request) {
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Missing 'text' field" }, { status: 400 });
     }
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     // Try real Gemini API first
     try {
@@ -54,7 +54,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
-      // Save to Supabase
+      // Save to Supabase Incidents
       const { data: incident, error: insertError } = await supabase
         .from('incidents')
         .insert({
@@ -64,12 +64,26 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
           status: "Active",
           affected: parsed.affected_count || "Unknown",
           description: parsed.summary || "",
+          created_by: user?.id || null
         })
         .select()
         .single();
 
       if (insertError) {
         console.error("Error inserting incident into Supabase:", insertError);
+      }
+
+      // Save to nlp_extractions if user is authenticated
+      if (user) {
+        // fetch role from profiles
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        
+        await supabase.from('nlp_extractions').insert({
+          user_id: user.id,
+          role_tag: profile?.role || null,
+          raw_text: text,
+          extracted_data: parsed
+        });
       }
 
       return NextResponse.json({ 
