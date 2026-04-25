@@ -1,8 +1,8 @@
 "use client";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { motion } from "framer-motion";
-import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu, Sparkles, BrainCircuit } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu, Sparkles, BrainCircuit, XCircle, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,9 +10,14 @@ export default function NGODashboard() {
   const [reportText, setReportText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [incidents, setIncidents] = useState<any[]>([]);
   const [extractions, setExtractions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    volunteersActive: "0",
+    avgResponse: "0m",
+  });
   
   const supabase = createClient();
 
@@ -22,10 +27,10 @@ export default function NGODashboard() {
     // Set up realtime subscriptions
     const channel = supabase
       .channel('public:incidents')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
         fetchData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'nlp_extractions' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'nlp_extractions' }, () => {
         fetchData();
       })
       .subscribe();
@@ -59,6 +64,38 @@ export default function NGODashboard() {
       if (extData) setExtractions(extData);
     }
     
+    // Fetch stats
+    const { data: activeMissions } = await supabase.from('missions').select('volunteer_id').neq('status', 'Completed');
+    const volunteersActive = activeMissions ? new Set(activeMissions.map(m => m.volunteer_id)).size : 0;
+    
+    // Calculate avg response
+    const { data: recentMissions } = await supabase
+      .from('missions')
+      .select('created_at, incident:incidents(created_at)')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    
+    let avgResponseStr = "—";
+    if (recentMissions && recentMissions.length > 0) {
+      let total = 0;
+      let count = 0;
+      recentMissions.forEach((m: any) => {
+        if (m.incident?.created_at && m.created_at) {
+          const diff = (new Date(m.created_at).getTime() - new Date(m.incident.created_at).getTime()) / 60000;
+          if (diff > 0 && diff < 1440) {
+            total += diff;
+            count++;
+          }
+        }
+      });
+      if (count > 0) avgResponseStr = `${(total / count).toFixed(1)}m`;
+    }
+
+    setStats({
+      volunteersActive: volunteersActive.toString(),
+      avgResponse: avgResponseStr,
+    });
+    
     setLoading(false);
   };
 
@@ -67,6 +104,7 @@ export default function NGODashboard() {
     if (!reportText.trim()) return;
     
     setIsSubmitting(true);
+    setSubmitError("");
     
     try {
       // 1. Submit to our AI Analysis API
@@ -83,12 +121,25 @@ export default function NGODashboard() {
         setReportText("");
         setTimeout(() => setSubmitted(false), 3000);
         fetchData(); // Refresh immediately after submission
+      } else {
+        setSubmitError(aiData.error || aiData.details || "AI processing failed. Please try again.");
       }
     } catch (err) {
       console.error("Error submitting:", err);
+      setSubmitError("Network error — check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const deleteIncident = async (id: string) => {
+    if (!confirm('Delete this incident? This action cannot be undone.')) return;
+    // Delete associated missions first
+    await supabase.from('missions').delete().eq('incident_id', id);
+    // Delete the incident
+    await supabase.from('incidents').delete().eq('id', id);
+    // Refresh data
+    fetchData();
   };
 
   const getTimeAgo = (dateString: string) => {
@@ -123,8 +174,8 @@ export default function NGODashboard() {
           {[
             { label: "Active Reports", value: incidents.length.toString(), icon: FileText, trend: "Live Tracking" },
             { label: "AI Processed", value: extractions.length.toString(), icon: BrainCircuit, trend: "Entities Extracted" },
-            { label: "Volunteers Active", value: "156", icon: Activity, trend: "+12 online" },
-            { label: "Avg Response", value: "6.2m", icon: Clock, trend: "-1.8m faster" },
+            { label: "Volunteers Active", value: stats.volunteersActive, icon: Activity, trend: "Currently Deployed" },
+            { label: "Avg Response", value: stats.avgResponse, icon: Clock, trend: "Time to Deploy" },
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -191,6 +242,39 @@ export default function NGODashboard() {
                   )}
                 </button>
               </form>
+
+              {/* Error feedback */}
+              <AnimatePresence>
+                {submitError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2"
+                  >
+                    <XCircle size={14} className="shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold mb-0.5">Analysis Failed</div>
+                      {submitError}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Success feedback */}
+              <AnimatePresence>
+                {submitted && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-400 flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={14} />
+                    Report analyzed by Gemini AI and logged to the incident feed.
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* NLP Extractions Mini Feed */}
@@ -206,7 +290,10 @@ export default function NGODashboard() {
               </h3>
               <div className="space-y-3">
                 {extractions.length === 0 ? (
-                  <div className="text-xs text-accent-dim text-center py-4">No AI extractions yet.</div>
+                  <div className="text-xs text-accent-dim text-center py-4">
+                    <BrainCircuit size={20} className="mx-auto mb-2 opacity-20" />
+                    No AI extractions yet. Submit a field report above.
+                  </div>
                 ) : (
                   extractions.map((ext) => (
                     <div key={ext.id} className="p-3 rounded-lg border border-foreground/[0.04] bg-background/50 space-y-2">
@@ -221,7 +308,15 @@ export default function NGODashboard() {
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider ${ext.extracted_data?.priority === 'CRITICAL' ? 'bg-foreground text-background' : 'bg-foreground/10 text-foreground'}`}>
                           {ext.extracted_data?.priority}
                         </span>
+                        {ext.extracted_data?.confidence_score && (
+                          <span className="px-1.5 py-0.5 rounded bg-foreground/[0.04] text-[9px] font-mono text-accent-dim">
+                            {ext.extracted_data.confidence_score}% conf
+                          </span>
+                        )}
                       </div>
+                      {ext.extracted_data?.summary && (
+                        <div className="text-[10px] text-accent-dim line-clamp-2">{ext.extracted_data.summary}</div>
+                      )}
                       <div className="text-[10px] text-accent-muted truncate">{ext.raw_text}</div>
                     </div>
                   ))
@@ -258,6 +353,7 @@ export default function NGODashboard() {
                  <div className="h-64 flex flex-col items-center justify-center text-accent-dim text-sm">
                    <MapPin size={32} className="opacity-20 mb-3" />
                    <span>No active incidents detected.</span>
+                   <span className="text-[11px] text-gray-600 mt-1">Submit a field report to create one.</span>
                  </div>
               ) : (
                 <div className="space-y-2">
@@ -291,16 +387,21 @@ export default function NGODashboard() {
                           )}
                         </div>
                       </div>
-                      <div className="sm:text-right flex flex-row sm:flex-col justify-between items-center sm:items-end">
+                      <div className="sm:text-right flex flex-row sm:flex-col justify-between items-center sm:items-end gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-background border border-foreground/10">
                           {need.status === "Processing" && <><Cpu size={12} className="animate-spin text-accent-muted" />Processing</>}
                           {need.status === "Dispatched" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Dispatched</>}
                           {need.status === "Active" && <><Activity size={12} className="text-accent-muted" />Active</>}
+                          {need.status === "In Transit" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />In Transit</>}
                           {need.status === "Resolved" && <><CheckCircle2 size={12} className="text-green-500" />Resolved</>}
                         </span>
-                        <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold group-hover:text-foreground transition-colors mt-2">
-                          View Details &rarr;
-                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteIncident(need.id); }}
+                          className="flex items-center gap-1 text-[10px] text-red-400/60 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                          title="Delete Incident"
+                        >
+                          <Trash2 size={11} /> Delete
+                        </button>
                       </div>
                     </motion.div>
                   ))}

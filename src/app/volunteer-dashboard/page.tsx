@@ -1,10 +1,21 @@
 "use client";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { motion } from "framer-motion";
-import { MapPin, Clock, CheckCircle2, Star, ArrowRight, Zap, Trophy, Target, Heart, Navigation2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Clock, CheckCircle2, Star, ArrowRight, Zap, Trophy, Target, Heart, Navigation2, BrainCircuit, X, Sparkles, Shield, Bell } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+interface AIBriefing {
+  location: string;
+  category: string;
+  priority: string;
+  affected: string;
+  description: string;
+  summary: string;
+  recommended_action: string;
+  confidence_score: number;
+}
 
 export default function VolunteerDashboard() {
   const [status, setStatus] = useState<"available" | "busy" | "offline">("available");
@@ -13,15 +24,30 @@ export default function VolunteerDashboard() {
   const [availableMissions, setAvailableMissions] = useState<any[]>([]);
   const [activeAssignments, setActiveAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    missionsComplete: "0",
+    peopleHelped: "0",
+    hoursVolunteered: "0",
+    impactScore: "0",
+  });
+  
+  // AI briefing modal
+  const [showAIBriefing, setShowAIBriefing] = useState(false);
+  const [aiBriefingData, setAiBriefingData] = useState<AIBriefing | null>(null);
+  const [pendingDeployId, setPendingDeployId] = useState<string | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
   
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
+        userIdRef.current = user.id;
         fetchData(user.id);
       }
     }
@@ -32,10 +58,13 @@ export default function VolunteerDashboard() {
     const channel = supabase
       .channel('public:volunteer_updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
-        if (user) fetchData(user.id);
+        if (userIdRef.current) fetchData(userIdRef.current);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, () => {
-        if (user) fetchData(user.id);
+        if (userIdRef.current) fetchData(userIdRef.current);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        if (userIdRef.current) fetchAISuggestions(userIdRef.current);
       })
       .subscribe();
       
@@ -54,6 +83,9 @@ export default function VolunteerDashboard() {
       
     if (incidents) setAvailableMissions(incidents);
 
+    // Fetch AI suggestions (notifications)
+    fetchAISuggestions(userId);
+
     // Fetch My Active Missions
     const { data: missions } = await supabase
       .from('missions')
@@ -62,17 +94,129 @@ export default function VolunteerDashboard() {
       .neq('status', 'Completed');
       
     if (missions) setActiveAssignments(missions);
+
+    // Fetch My Completed Missions for stats
+    const { data: allMissions } = await supabase
+      .from('missions')
+      .select('*, incident:incidents(*)')
+      .eq('volunteer_id', userId);
+      
+    if (allMissions) {
+      const completed = allMissions.filter((m: any) => m.status === 'Completed');
+      const missionsComplete = completed.length;
+      let peopleHelped = 0;
+      completed.forEach((m: any) => {
+        const affected = parseInt(m.incident?.affected || "0");
+        if (!isNaN(affected)) peopleHelped += affected;
+      });
+      const hoursVolunteered = missionsComplete * 3;
+      const impactScore = Math.min(100, 50 + (missionsComplete * 5));
+      
+      setStats({
+        missionsComplete: missionsComplete.toString(),
+        peopleHelped: peopleHelped.toLocaleString(),
+        hoursVolunteered: hoursVolunteered.toString(),
+        impactScore: impactScore.toString()
+      });
+    }
     
     setLoading(false);
   };
 
-  const handleAccept = async (incidentId: string) => {
-    if (!user) return;
-    setAcceptedMission(incidentId);
+  const fetchAISuggestions = async (userId: string) => {
+    const { data: notifs } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', 'ai')
+      .eq('read', false)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (notifs) setAiSuggestions(notifs);
+  };
+
+  const dismissSuggestion = async (id: string) => {
+    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    setAiSuggestions(prev => prev.filter(s => s.id !== id));
+  };
+
+  // When Deploy is clicked, show AI briefing first
+  const handleDeployClick = async (incidentId: string) => {
+    setPendingDeployId(incidentId);
+    setBriefingLoading(true);
+    setShowAIBriefing(true);
+    
+    const incident = availableMissions.find(m => m.id === incidentId);
+    
+    // Try to fetch NLP extraction for this incident
+    const { data: extractions } = await supabase
+      .from('nlp_extractions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    // Find matching extraction by location
+    let matchedExtraction: any = null;
+    if (extractions && incident) {
+      matchedExtraction = extractions.find((ext: any) => {
+        const loc = ext.extracted_data?.location?.toLowerCase() || "";
+        const incLoc = incident.location?.toLowerCase() || "";
+        return loc === incLoc || loc.includes(incLoc) || incLoc.includes(loc);
+      });
+    }
+
+    if (matchedExtraction?.extracted_data) {
+      setAiBriefingData({
+        location: matchedExtraction.extracted_data.location || incident?.location || "Unknown",
+        category: matchedExtraction.extracted_data.category || incident?.type || "General",
+        priority: matchedExtraction.extracted_data.priority || incident?.priority || "NORMAL",
+        affected: matchedExtraction.extracted_data.affected_count || incident?.affected || "Unknown",
+        description: incident?.description || matchedExtraction.extracted_data.summary || "",
+        summary: matchedExtraction.extracted_data.summary || "",
+        recommended_action: matchedExtraction.extracted_data.recommended_action || "Proceed to location and assess the situation",
+        confidence_score: matchedExtraction.extracted_data.confidence_score || 85,
+      });
+    } else {
+      // Use incident data directly
+      setAiBriefingData({
+        location: incident?.location || "Unknown",
+        category: incident?.type || "General",
+        priority: incident?.priority || "NORMAL",
+        affected: incident?.affected || "Unknown",
+        description: incident?.description || "",
+        summary: incident?.description || "AI-analyzed incident requiring immediate response",
+        recommended_action: "Proceed to the incident location, assess the situation, and coordinate with nearby volunteers",
+        confidence_score: 78,
+      });
+    }
+    
+    setBriefingLoading(false);
+  };
+
+  // Confirm deployment after AI briefing
+  const confirmDeploy = async () => {
+    if (!pendingDeployId || !user) return;
+    
+    // HIGH FIX #5: Prevent duplicate deployments
+    const { data: existing } = await supabase
+      .from('missions')
+      .select('id')
+      .eq('incident_id', pendingDeployId)
+      .eq('volunteer_id', user.id)
+      .maybeSingle();
+    
+    if (existing) {
+      setShowAIBriefing(false);
+      setPendingDeployId(null);
+      return; // Already deployed
+    }
+
+    setAcceptedMission(pendingDeployId);
+    setShowAIBriefing(false);
     
     // Create mission
     await supabase.from('missions').insert([{
-      incident_id: incidentId,
+      incident_id: pendingDeployId,
       volunteer_id: user.id,
       status: 'In Progress'
     }]);
@@ -80,10 +224,11 @@ export default function VolunteerDashboard() {
     // Update incident status
     await supabase.from('incidents').update({
       status: 'In Transit'
-    }).eq('id', incidentId);
+    }).eq('id', pendingDeployId);
     
     setTimeout(() => {
       setAcceptedMission(null);
+      setPendingDeployId(null);
       fetchData(user.id);
     }, 1000);
   };
@@ -145,10 +290,10 @@ export default function VolunteerDashboard() {
         {/* Impact Stats */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 relative z-10">
           {[
-            { label: "Missions Complete", value: "47", icon: Trophy, sub: "This month" },
-            { label: "People Helped", value: "2,340", icon: Heart, sub: "Total impact" },
-            { label: "Hours Volunteered", value: "186", icon: Clock, sub: "This quarter" },
-            { label: "Impact Score", value: "94", icon: Star, sub: "Top 5%" },
+            { label: "Missions Complete", value: stats.missionsComplete, icon: Trophy, sub: "This month" },
+            { label: "People Helped", value: stats.peopleHelped, icon: Heart, sub: "Total impact" },
+            { label: "Hours Volunteered", value: stats.hoursVolunteered, icon: Clock, sub: "This quarter" },
+            { label: "Impact Score", value: stats.impactScore, icon: Star, sub: "Top 5%" },
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -173,6 +318,37 @@ export default function VolunteerDashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* AI Suggestions Banner */}
+        <AnimatePresence>
+          {aiSuggestions.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-3 relative z-10">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <BrainCircuit size={15} className="text-indigo-400" />
+                AI Suggestions For You
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">{aiSuggestions.length} NEW</span>
+              </h3>
+              {aiSuggestions.map((sug, i) => (
+                <motion.div key={sug.id} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                  className="p-4 rounded-xl bg-indigo-500/[0.04] border border-indigo-500/15 flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                    <BrainCircuit size={16} className="text-indigo-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground mb-0.5">{sug.title}</div>
+                    <p className="text-xs text-accent-dim leading-relaxed line-clamp-2">{sug.body}</p>
+                    <div className="text-[10px] text-gray-600 mt-1">{getTimeAgo(sug.created_at)}</div>
+                  </div>
+                  <button onClick={() => dismissSuggestion(sug.id)}
+                    className="shrink-0 text-accent-dim hover:text-foreground p-1 rounded hover:bg-foreground/[0.04] transition-colors" title="Dismiss">
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="grid xl:grid-cols-5 gap-8 relative z-10">
           {/* Active Assignments */}
@@ -291,7 +467,7 @@ export default function VolunteerDashboard() {
                         </div>
 
                         <button
-                          onClick={() => handleAccept(mission.id)}
+                          onClick={() => handleDeployClick(mission.id)}
                           disabled={acceptedMission === mission.id || mission.status === 'In Transit'}
                           className={`shrink-0 h-11 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-[0.95] ${
                             acceptedMission === mission.id
@@ -306,7 +482,7 @@ export default function VolunteerDashboard() {
                           ) : mission.status === 'In Transit' ? (
                             <>Dispatched</>
                           ) : (
-                            <>Deploy <ArrowRight size={16} /></>
+                            <><BrainCircuit size={14} /> Deploy <ArrowRight size={16} /></>
                           )}
                         </button>
                       </div>
@@ -318,6 +494,123 @@ export default function VolunteerDashboard() {
           </motion.div>
         </div>
       </div>
+
+      {/* AI Briefing Modal */}
+      <AnimatePresence>
+        {showAIBriefing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            onClick={() => { setShowAIBriefing(false); setPendingDeployId(null); }}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-2xl overflow-hidden"
+            >
+              {/* Header glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-60 h-20 bg-foreground/5 blur-[40px] rounded-full pointer-events-none" />
+
+              <div className="p-6 border-b border-foreground/[0.06] flex items-center justify-between relative">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-foreground/10 border border-foreground/20 flex items-center justify-center">
+                    <BrainCircuit size={16} className="text-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">AI Mission Briefing</h3>
+                    <p className="text-[10px] text-accent-dim">Powered by Gemini — review before deploying</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setShowAIBriefing(false); setPendingDeployId(null); }}
+                  className="w-8 h-8 rounded-lg bg-foreground/[0.04] border border-foreground/[0.06] flex items-center justify-center text-accent-dim hover:text-foreground transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {briefingLoading ? (
+                <div className="p-12 flex flex-col items-center justify-center text-accent-dim text-sm space-y-3">
+                  <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+                  <span>Loading AI analysis...</span>
+                </div>
+              ) : aiBriefingData ? (
+                <div className="p-6 space-y-4">
+                  {/* Key data */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-center">
+                      <div className={`text-base font-bold ${aiBriefingData.priority === 'CRITICAL' ? 'text-foreground' : 'text-accent-muted'}`}>{aiBriefingData.priority}</div>
+                      <div className="text-[9px] text-accent-dim uppercase tracking-wider mt-0.5">Priority</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-center">
+                      <div className="text-base font-bold">{aiBriefingData.affected}</div>
+                      <div className="text-[9px] text-accent-dim uppercase tracking-wider mt-0.5">Affected</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-center">
+                      <div className="text-base font-bold">{aiBriefingData.confidence_score}%</div>
+                      <div className="text-[9px] text-accent-dim uppercase tracking-wider mt-0.5">AI Confidence</div>
+                    </div>
+                  </div>
+
+                  {/* Location & Category */}
+                  <div className="p-4 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04] space-y-2.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-accent-dim">Location</span>
+                      <span className="text-foreground font-medium">{aiBriefingData.location}</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-t border-foreground/[0.03] pt-2.5">
+                      <span className="text-accent-dim">Category</span>
+                      <span className="text-foreground font-medium">{aiBriefingData.category}</span>
+                    </div>
+                  </div>
+
+                  {/* AI Summary */}
+                  {aiBriefingData.summary && (
+                    <div className="p-4 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
+                      <div className="text-[10px] text-accent-dim uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Sparkles size={10} className="text-foreground" /> AI Summary
+                      </div>
+                      <p className="text-xs text-accent-muted leading-relaxed">{aiBriefingData.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Recommended Action */}
+                  <div className="p-4 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08]">
+                    <div className="text-[10px] text-accent-dim uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Shield size={10} className="text-foreground" /> Recommended Action
+                    </div>
+                    <p className="text-xs text-foreground font-medium leading-relaxed">{aiBriefingData.recommended_action}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => { setShowAIBriefing(false); setPendingDeployId(null); }}
+                      className="flex-1 h-11 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm font-medium text-accent-muted hover:text-foreground transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDeploy}
+                      className="flex-1 h-11 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-all"
+                    >
+                      <Zap size={14} /> Confirm Deploy
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

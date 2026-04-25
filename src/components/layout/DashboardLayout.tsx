@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity, AlertTriangle, Users, Map as MapIcon, Settings,
   Search, Bell, Menu, X, BrainCircuit, BarChart3, LogOut,
-  ChevronLeft
+  ChevronLeft, Sparkles, FileSearch
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -18,27 +18,24 @@ interface DashboardLayoutProps {
 
 const ngoLinks = [
   { href: "/ngo-dashboard", label: "Dashboard", icon: Activity },
-  { href: "/ngo-dashboard", label: "Submit Report", icon: AlertTriangle, hash: "#submit" },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
-  { href: "/ai-engine", label: "AI Engine", icon: BrainCircuit },
+  { href: "/ai-engine", label: "Data Center", icon: BrainCircuit },
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 const volunteerLinks = [
   { href: "/volunteer-dashboard", label: "Dashboard", icon: Activity },
-  { href: "/volunteer-dashboard", label: "Missions", icon: MapIcon, hash: "#missions" },
+  { href: "/incidents", label: "Incidents", icon: FileSearch },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
-  { href: "/ai-engine", label: "AI Engine", icon: BrainCircuit },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/ai-briefing", label: "AI Briefing", icon: Sparkles },
 ];
 
 const adminLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Activity },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
-  { href: "/ai-engine", label: "AI Engine", icon: BrainCircuit },
+  { href: "/ai-engine", label: "Data Center", icon: BrainCircuit },
   { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/ngo-dashboard", label: "NGO View", icon: Users },
-  { href: "/volunteer-dashboard", label: "Volunteer View", icon: Users },
+  { href: "/incidents", label: "Incidents", icon: FileSearch },
 ];
 
 export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
@@ -47,19 +44,29 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
+  const [actualRole, setActualRole] = useState<"ngo" | "volunteer" | "admin">(role);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  }, [supabase.auth]);
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        if (profile?.role) {
+          setActualRole(profile.role as "ngo" | "volunteer" | "admin");
+        }
+      }
+    }
+    loadUser();
+  }, [supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
-  const links = role === "ngo" ? ngoLinks : role === "volunteer" ? volunteerLinks : adminLinks;
-  const roleLabel = role === "ngo" ? "NGO" : role === "volunteer" ? "Volunteer" : "Admin";
-  const roleColor = "bg-foreground/10 text-foreground";
+  const links = actualRole === "ngo" ? ngoLinks : actualRole === "volunteer" ? volunteerLinks : adminLinks;
+  const roleLabel = actualRole === "ngo" ? "NGO" : actualRole === "volunteer" ? "Volunteer" : "Admin";
 
   return (
     <div className="min-h-screen bg-background text-foreground font-helvetica flex flex-col overflow-hidden relative">

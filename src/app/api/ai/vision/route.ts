@@ -1,23 +1,33 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
-
-
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // CRITICAL FIX #1: Auth check
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("image") as File | null;
     const description = formData.get("description") as string | null;
+    const location = formData.get("location") as string | null;
 
     if (!file && !description) {
       return NextResponse.json({ error: "Provide an image or description" }, { status: 400 });
     }
 
-    // Try real Gemini API
+    // Location is required for heatmap mapping
+    if (!location || !location.trim()) {
+      return NextResponse.json({ error: "Location is required to map this data to the heatmap." }, { status: 400 });
+    }
+
     try {
       let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       let usedModel = "gemini-2.5-flash";
@@ -78,15 +88,17 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
-      // Save to Supabase
+      // CRITICAL FIX #2: Save with created_by
       const { data: incident, error: insertError } = await supabase
         .from('incidents')
         .insert({
-          location: "Vision Assessment Location", // Fallback location
+          location: location.trim(),
           type: parsed.damage_type || "Vision Assessment",
-          priority: parsed.severity || "HIGH",
+          priority: parsed.severity === "MEDIUM" ? "HIGH" : parsed.severity === "LOW" ? "NORMAL" : parsed.severity || "HIGH",
           status: "Active",
+          affected: parsed.estimated_affected_area || "Unknown",
           description: parsed.description || "",
+          created_by: user.id
         })
         .select()
         .single();
@@ -99,6 +111,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         success: true, 
         data: { 
           ...parsed, 
+          location: location.trim(),
           incident_id: incident?.id,
           _source: usedModel 
         } 

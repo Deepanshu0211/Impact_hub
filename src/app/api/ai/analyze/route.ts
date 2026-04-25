@@ -1,13 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// CRITICAL FIX #4: Use service role key for admin operations (fallback to anon for hackathon)
+const adminSupabase = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+);
 
 export async function POST(req: Request) {
   try {
     const { text } = await req.json();
-
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Missing 'text' field" }, { status: 400 });
     }
@@ -15,7 +20,6 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Try real Gemini API first
     try {
       let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       let usedModel = "gemini-2.5-flash";
@@ -41,18 +45,31 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         result = await model.generateContent(prompt);
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
-          console.warn("503 on gemini-2.5-flash, falling back to gemini-2.5-flash-lite...");
           model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
           usedModel = "gemini-2.5-flash-lite";
           result = await model.generateContent(prompt);
-        } else {
-          throw e;
-        }
+        } else { throw e; }
       }
 
       const responseText = result.response.text();
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
+
+      // === LOCATION VALIDATION ===
+      const loc = (parsed.location || "").trim().toLowerCase();
+      if (!loc || loc === "unknown" || loc === "not mentioned" || loc === "n/a" || loc === "unspecified") {
+        return NextResponse.json({
+          error: "Location is required",
+          details: "Your field report must mention a specific place/area/city. AI could not extract any location. Please include a location and try again."
+        }, { status: 400 });
+      }
+
+      // Get NGO name for display
+      let ngoName = "Unknown NGO";
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('name').eq('id', user.id).single();
+        ngoName = profile?.name || user.user_metadata?.full_name || "Unknown NGO";
+      }
 
       // Save to Supabase Incidents
       const { data: incident, error: insertError } = await supabase
@@ -70,14 +87,12 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         .single();
 
       if (insertError) {
-        console.error("Error inserting incident into Supabase:", insertError);
+        console.error("Error inserting incident:", insertError);
       }
 
-      // Save to nlp_extractions if user is authenticated
+      // Save NLP extraction
       if (user) {
-        // fetch role from profiles
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        
         await supabase.from('nlp_extractions').insert({
           user_id: user.id,
           role_tag: profile?.role || null,
@@ -86,13 +101,68 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         });
       }
 
+      // === AUTO-MATCH: Find volunteers and send notifications ===
+      if (incident) {
+        try {
+          const { data: volunteers } = await adminSupabase
+            .from('profiles')
+            .select('*')
+            .eq('role', 'volunteer');
+
+          if (volunteers && volunteers.length > 0) {
+            const volList = volunteers.map((v: any) => ({
+              id: v.id,
+              name: v.name || "Volunteer",
+              skills: Array.isArray(v.metadata?.skills) ? v.metadata.skills : (v.metadata?.skills || "").split(",").map((s: string) => s.trim()).filter(Boolean),
+              location: v.metadata?.location || "India"
+            }));
+
+            // HIGH FIX #9: Build a set of valid IDs to validate AI output
+            const validVolunteerIds = new Set(volList.map((v: any) => v.id));
+
+            let matchModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+            const matchPrompt = `You are a volunteer matching AI. Given this incident and volunteers, identify the best matches.
+
+Incident: { "location": "${parsed.location}", "type": "${parsed.category}", "priority": "${parsed.priority}", "affected": "${parsed.affected_count}", "description": "${parsed.summary}" }
+
+Volunteers: ${JSON.stringify(volList)}
+
+Return ONLY valid JSON (no markdown, no code fences):
+{
+  "matches": [
+    { "id": "volunteer UUID", "name": "name", "score": 0-100, "reason": "short reason why they match" }
+  ]
+}
+Only include volunteers with score >= 50. Use the EXACT id values provided.`;
+
+            const matchResult = await matchModel.generateContent(matchPrompt);
+            const matchCleaned = matchResult.response.text().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const matchParsed = JSON.parse(matchCleaned);
+
+            if (matchParsed.matches && Array.isArray(matchParsed.matches)) {
+              const notifications = matchParsed.matches
+                .filter((m: any) => m.id && m.score >= 50 && validVolunteerIds.has(m.id))
+                .map((m: any) => ({
+                  user_id: m.id,
+                  type: "ai" as const,
+                  title: `🧠 AI Match: ${parsed.category} in ${parsed.location}`,
+                  body: `${ngoName} reported a ${parsed.priority} incident. AI matched you (score: ${m.score}/100). ${m.reason}. Tap to review and accept.`,
+                  read: false
+                }));
+
+              if (notifications.length > 0) {
+                await adminSupabase.from('notifications').insert(notifications);
+              }
+            }
+          }
+        } catch (matchErr) {
+          console.error("Auto-match failed (non-critical):", matchErr);
+        }
+      }
+
       return NextResponse.json({ 
         success: true, 
-        data: { 
-          ...parsed, 
-          incident_id: incident?.id,
-          _source: usedModel 
-        } 
+        data: { ...parsed, incident_id: incident?.id, _source: usedModel } 
       });
     } catch (apiError: unknown) {
       console.error("Gemini API failed:", apiError instanceof Error ? apiError.message : "unknown");

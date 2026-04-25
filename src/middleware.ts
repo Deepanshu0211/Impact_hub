@@ -41,7 +41,12 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/dashboard') ||
       request.nextUrl.pathname.startsWith('/settings') ||
       request.nextUrl.pathname.startsWith('/notifications') ||
-      request.nextUrl.pathname.startsWith('/onboarding'))
+      request.nextUrl.pathname.startsWith('/onboarding') ||
+      request.nextUrl.pathname.startsWith('/ai-engine') ||
+      request.nextUrl.pathname.startsWith('/ai-briefing') ||
+      request.nextUrl.pathname.startsWith('/reports') ||
+      request.nextUrl.pathname.startsWith('/live-map') ||
+      request.nextUrl.pathname.startsWith('/incidents'))
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'

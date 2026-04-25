@@ -2,118 +2,262 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
-import { MapPin, Filter, AlertTriangle, CheckCircle2, Clock, Users } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { MapPin, AlertTriangle, CheckCircle2, Clock, Users, Flame, Layers } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+import dynamic from "next/dynamic";
+
+const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
+const DEFAULT_ZOOM = 5;
+
+// Geocode cache
+const geocodeCache: Record<string, [number, number]> = {};
+
+async function geocodeLocation(location: string): Promise<[number, number] | null> {
+  const key = location.toLowerCase().trim();
+  if (geocodeCache[key]) return geocodeCache[key];
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location + ", India")}&format=json&limit=1`,
+      { headers: { 'User-Agent': 'ImpactHub/1.0' } }
+    );
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      geocodeCache[key] = coords;
+      return coords;
+    }
+  } catch (e) {
+    console.warn('Geocoding failed for:', location);
+  }
+  return null;
+}
+
+function getCoords(location: string, lat?: number, lng?: number, index?: number): [number, number] {
+  if (lat && lng && lat !== 0 && lng !== 0) return [lat, lng];
+  const key = (location || "").toLowerCase().trim();
+  if (geocodeCache[key]) {
+    const c = geocodeCache[key];
+    const j = (index || 0) * 0.003;
+    return [c[0] + j, c[1] + j];
+  }
+  // Fallback
+  const idx = index || 0;
+  return [22.0 + ((idx * 7 + 3) % 20) * 0.3, 78.0 + ((idx * 11 + 5) % 20) * 0.3];
+}
+
+// Map component
+function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: {
+  incidents: any[];
+  filter: string;
+  selectedIncident: string | null;
+  setSelectedIncident: (id: string | null) => void;
+}) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [L, setL] = useState<any>(null);
+  const [geocodeDone, setGeocodeDone] = useState(0);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+    import("leaflet").then((leaflet) => {
+      const Ld = leaflet.default;
+      setL(Ld);
+      Ld.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      });
+      import("leaflet/dist/leaflet.css");
+      const map = Ld.map(mapContainerRef.current!, {
+        center: DEFAULT_CENTER,
+        zoom: DEFAULT_ZOOM,
+        zoomControl: true,
+        attributionControl: true,
+      });
+      Ld.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org">OSM</a> &copy; <a href="https://carto.com">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 19,
+      }).addTo(map);
+      mapRef.current = map;
+      setMapReady(true);
+    });
+  }, []);
+
+  // Geocode all incidents whenever they change
+  useEffect(() => {
+    if (!incidents.length) return;
+    let cancelled = false;
+    async function doGeocode() {
+      for (const inc of incidents) {
+        if (!inc.lat && !inc.lng) {
+          await geocodeLocation(inc.location);
+        }
+      }
+      if (!cancelled) setGeocodeDone(d => d + 1);
+    }
+    doGeocode();
+    return () => { cancelled = true; };
+  }, [incidents]);
+
+  // Place markers
+  useEffect(() => {
+    if (!mapReady || !L || !mapRef.current) return;
+    const map = mapRef.current;
+
+    // Clear
+    map.eachLayer((layer: any) => {
+      if (layer._isIncidentMarker) map.removeLayer(layer);
+    });
+
+    const filtered = filter === "all" ? incidents : incidents.filter(i => i.priority === filter);
+    const heatPoints: [number, number, number][] = [];
+
+    filtered.forEach((inc, i) => {
+      const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
+      const intensity = inc.priority === "CRITICAL" ? 1.0 : inc.priority === "HIGH" ? 0.7 : 0.4;
+      heatPoints.push([lat, lng, intensity]);
+
+      const color = inc.priority === "CRITICAL" ? "#b91c1c" : inc.priority === "HIGH" ? "#b45309" : "#15803d";
+      const fillColor = inc.priority === "CRITICAL" ? "#dc2626" : inc.priority === "HIGH" ? "#d97706" : "#22c55e";
+      const radius = inc.priority === "CRITICAL" ? 10 : inc.priority === "HIGH" ? 7 : 5;
+
+      const marker = L.circleMarker([lat, lng], {
+        radius,
+        color,
+        fillColor,
+        fillOpacity: inc.priority === "CRITICAL" ? 0.85 : 0.65,
+        weight: 2,
+      });
+      marker._isIncidentMarker = true;
+
+      const popupContent = `
+        <div style="font-family: 'Helvetica Neue', sans-serif; color: #fff; min-width: 200px;">
+          <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${inc.location}</div>
+          <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">${inc.type || 'General'}</div>
+          ${inc.ngo_name ? `<div style="font-size: 10px; color: #818cf8; margin-bottom: 6px;">📋 Reported by: ${inc.ngo_name}</div>` : ''}
+          <div style="display: flex; gap: 8px; font-size: 10px; color: #71717a;">
+            <span>👥 ${inc.affected || 'Unknown'} affected</span>
+            <span style="padding: 1px 6px; border-radius: 4px; background: ${inc.priority === 'CRITICAL' ? 'rgba(220,38,38,0.25)' : inc.priority === 'HIGH' ? 'rgba(217,119,6,0.25)' : 'rgba(34,197,94,0.25)'}; font-weight: 700; color: ${inc.priority === 'CRITICAL' ? '#f87171' : inc.priority === 'HIGH' ? '#fbbf24' : '#4ade80'}; letter-spacing: 0.05em;">
+              ${inc.priority}
+            </span>
+          </div>
+          ${inc.description ? `<div style="font-size: 11px; color: #a1a1aa; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">${inc.description}</div>` : ''}
+        </div>
+      `;
+
+      marker.bindPopup(popupContent, { className: "dark-popup", closeButton: true, maxWidth: 280 });
+      marker.on("mouseover", function (this: any) { this.openPopup(); });
+      marker.on("mouseout", function (this: any) { this.closePopup(); });
+      marker.on("click", () => setSelectedIncident(inc.id));
+      marker.addTo(map);
+    });
+
+    // Heatmap circles
+    heatPoints.forEach(([lat, lng, intensity]) => {
+      const heatColor = intensity >= 0.9 ? "#dc2626" : intensity >= 0.6 ? "#d97706" : "#22c55e";
+      const heatCircle = L.circle([lat, lng], {
+        radius: 15000 * intensity,
+        color: "transparent",
+        fillColor: heatColor,
+        fillOpacity: 0.06 * intensity,
+        weight: 0,
+      });
+      heatCircle._isIncidentMarker = true;
+      heatCircle.addTo(map);
+    });
+
+    // Fit bounds
+    if (filtered.length > 0) {
+      const bounds = filtered.map((inc: any, i: number) => getCoords(inc.location, inc.lat, inc.lng, i));
+      try { map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 }); } catch {}
+    }
+  }, [mapReady, incidents, filter, L, geocodeDone]);
+
+  return <div ref={mapContainerRef} className="absolute inset-0" style={{ background: "#09090b" }} />;
+}
 
 export default function LiveMapPage() {
   const [filter, setFilter] = useState<string>("all");
   const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
   const [incidents, setIncidents] = useState<any[]>([]);
+  const [showHeat, setShowHeat] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
     fetchIncidents();
-    
-    // Set up realtime subscription
     const channel = supabase
       .channel('public:incidents_map')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
         fetchIncidents();
       })
       .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [supabase]);
 
   const fetchIncidents = async () => {
-    const { data } = await supabase
+    // Fetch incidents
+    const { data, error } = await supabase
       .from('incidents')
       .select('*')
       .order('created_at', { ascending: false });
-      
-    if (data) {
-      // Add mock x, y for visual placement if missing
-      const processed = data.map((inc, i) => ({
-        ...inc,
-        // Deterministic pseudo-random placement for demo based on index if no real lat/lng
-        x: inc.x || 20 + ((i * 17) % 60), 
-        y: inc.y || 20 + ((i * 23) % 60)
-      }));
-      setIncidents(processed);
+
+    if (error) { console.error('Failed to fetch incidents:', error); return; }
+    if (!data) return;
+
+    // Fetch NGO names separately to avoid join issues
+    const creatorIds = [...new Set(data.filter(d => d.created_by).map(d => d.created_by))];
+    let ngoMap: Record<string, string> = {};
+    if (creatorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', creatorIds);
+      if (profiles) {
+        profiles.forEach((p: any) => { ngoMap[p.id] = p.name || 'Unknown NGO'; });
+      }
     }
+
+    const mapped = data.map((inc: any) => ({
+      ...inc,
+      ngo_name: inc.created_by ? (ngoMap[inc.created_by] || null) : null
+    }));
+    setIncidents(mapped);
   };
 
   const filtered = filter === "all" ? incidents : incidents.filter(i => i.priority === filter);
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
 
   return (
     <DashboardLayout role="admin">
       <div className="flex h-[calc(100vh-56px)]">
         {/* Map Area */}
         <div className="flex-1 relative bg-background overflow-hidden font-helvetica">
-          {/* Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.02),transparent_70%)]" />
-
-          {/* Sector Labels */}
-          {["Sector 1", "Sector 3", "Sector 5", "Sector 7", "Sector 9"].map((s, i) => (
-            <div key={s} className="absolute text-[9px] text-gray-700 font-mono tracking-widest uppercase" style={{ left: `${15 + i * 18}%`, top: `${10 + (i % 2) * 5}%` }}>{s}</div>
-          ))}
-
-          {/* Incident Markers */}
-          {filtered.map((inc) => (
-            <motion.button
-              key={inc.id}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              onClick={() => setSelectedIncident(selectedIncident === inc.id ? null : inc.id)}
-              className="absolute z-10 group"
-              style={{ left: `${inc.x}%`, top: `${inc.y}%`, transform: "translate(-50%, -50%)" }}
-            >
-              {/* Pulse ring for active */}
-              {inc.status === "Processing" && (
-                <motion.div animate={{ scale: [1, 2.5], opacity: [0.4, 0] }} transition={{ duration: 2, repeat: Infinity }}
-                  className={`absolute inset-0 rounded-full ${inc.priority === "CRITICAL" ? "bg-foreground" : "bg-gray-400"}`} style={{ width: 24, height: 24, left: -4, top: -4 }}
-                />
-              )}
-              <div className={`relative w-4 h-4 rounded-full border-2 shadow-lg transition-all ${
-                inc.priority === "CRITICAL" ? "bg-foreground border-foreground shadow-[0_0_15px_rgba(255,255,255,0.5)]" :
-                inc.priority === "HIGH" ? "bg-gray-300 border-gray-300 shadow-[0_0_10px_rgba(200,200,200,0.3)]" :
-                "bg-gray-500 border-gray-500"
-              } ${selectedIncident === inc.id ? "scale-150" : "group-hover:scale-125"}`} />
-
-              {/* Tooltip */}
-              {selectedIncident === inc.id && (
-                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                  className="absolute top-6 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-md border border-foreground/15 rounded-lg p-3 whitespace-nowrap z-20 min-w-[180px]">
-                  <div className="text-xs font-bold text-foreground mb-1">{inc.location}</div>
-                  <div className="text-[10px] text-accent-muted mb-2">{inc.type}</div>
-                  <div className="flex items-center gap-3 text-[10px] text-accent-dim">
-                    <span className="flex items-center gap-1"><Users size={10} />{inc.affected}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
-                      inc.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20" : "bg-foreground/[0.06] text-gray-300 border-foreground/10"
-                    }`}>{inc.priority}</span>
-                  </div>
-                </motion.div>
-              )}
-            </motion.button>
-          ))}
-
-          {/* Map Legend */}
-          <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg p-3 text-[10px] space-y-2">
-            <div className="text-accent-dim font-bold uppercase tracking-wider mb-1">Priority</div>
-            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-foreground shadow-[0_0_6px_rgba(255,255,255,0.5)]" /> Critical</div>
-            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /> High</div>
-            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-gray-500" /> Normal</div>
-          </div>
+          <MapInner
+            incidents={incidents}
+            filter={filter}
+            selectedIncident={selectedIncident}
+            setSelectedIncident={setSelectedIncident}
+          />
 
           {/* Stats Overlay */}
-          <div className="absolute top-4 left-4 flex gap-2">
+          <div className="absolute top-4 left-4 flex gap-2 z-[1000]">
             {[
-              { l: "Processing", v: incidents.filter(i => i.status === "Processing").length }, 
-              { l: "Dispatched", v: incidents.filter(i => i.status === "In Transit").length }, 
+              { l: "Processing", v: incidents.filter(i => i.status === "Processing" || i.status === "Active").length },
+              { l: "Dispatched", v: incidents.filter(i => i.status === "In Transit").length },
               { l: "Resolved", v: incidents.filter(i => i.status === "Resolved").length }
             ].map(s => (
               <div key={s.l} className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-center">
@@ -122,13 +266,31 @@ export default function LiveMapPage() {
               </div>
             ))}
           </div>
+
+          {/* Heatmap Legend */}
+          <div className="absolute bottom-6 left-4 z-[1000] flex gap-3">
+            <div className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg p-3 text-xs space-y-1.5">
+              <div className="text-accent-dim font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <Flame size={10} /> Heatmap Legend
+              </div>
+              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_6px_rgba(220,38,38,0.5)]" /> Critical</div>
+              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> High</div>
+              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Normal</div>
+            </div>
+          </div>
         </div>
 
-        {/* Sidebar Panel */}
-        <div className="w-80 border-l border-foreground/[0.06] bg-background flex flex-col shrink-0 hidden lg:flex font-helvetica">
+        {/* Sidebar */}
+        <div className="w-80 border-l border-foreground/[0.06] flex flex-col bg-background/50 backdrop-blur-md">
           <div className="p-4 border-b border-foreground/[0.06]">
-            <h2 className="font-semibold tracking-tight text-sm mb-3">Live Incident Feed</h2>
-            <div className="flex gap-1.5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold tracking-tight text-sm">Incident Feed</h2>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-foreground/[0.04] border border-foreground/[0.06]">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[9px] font-bold tracking-wider">LIVE</span>
+              </div>
+            </div>
+            <div className="flex gap-1">
               {["all", "CRITICAL", "HIGH", "NORMAL"].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition-all ${filter === f ? "bg-foreground text-background" : "text-accent-dim hover:text-foreground bg-foreground/[0.03]"}`}>
@@ -140,7 +302,10 @@ export default function LiveMapPage() {
 
           <div className="flex-1 overflow-auto divide-y divide-white/[0.04]">
             {filtered.length === 0 ? (
-              <div className="p-5 text-center text-xs text-accent-dim">No incidents to display.</div>
+              <div className="p-5 text-center text-xs text-accent-dim">
+                <MapPin size={24} className="mx-auto mb-2 opacity-20" />
+                No incidents to display.
+              </div>
             ) : (
               filtered.map(inc => (
                 <button key={inc.id} onClick={() => setSelectedIncident(inc.id)}
@@ -148,24 +313,65 @@ export default function LiveMapPage() {
                   <div className="flex items-start justify-between mb-1">
                     <span className="text-sm font-medium text-foreground">{inc.location}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
-                      inc.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20" :
-                      inc.priority === "HIGH" ? "bg-foreground/[0.06] text-gray-300 border-foreground/10" :
-                      "bg-foreground/[0.03] text-accent-dim border-foreground/[0.06]"
+                      inc.priority === "CRITICAL" ? "bg-red-500/15 text-red-400 border-red-500/25" :
+                      inc.priority === "HIGH" ? "bg-amber-500/15 text-amber-400 border-amber-500/25" :
+                      "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
                     }`}>{inc.priority}</span>
                   </div>
-                  <div className="text-xs text-accent-dim mb-1.5">{inc.type}</div>
+                  <div className="text-xs text-accent-dim mb-1">{inc.type}</div>
+                  {inc.ngo_name && <div className="text-[10px] text-indigo-400 mb-1">📋 {inc.ngo_name}</div>}
                   <div className="flex items-center gap-2 text-[10px] text-gray-600">
                     {inc.status === "Processing" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Processing</>}
+                    {inc.status === "Active" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Active</>}
                     {inc.status === "In Transit" && <><Clock size={10} />Dispatched</>}
                     {inc.status === "Resolved" && <><CheckCircle2 size={10} />Resolved</>}
                     <span className="ml-auto">{inc.affected} affected</span>
                   </div>
+                  <div className="text-[9px] text-gray-700 mt-1">{getTimeAgo(inc.created_at)}</div>
                 </button>
               ))
             )}
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .dark-popup .leaflet-popup-content-wrapper {
+          background: rgba(9, 9, 11, 0.92) !important;
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+          color: #f4f4f5 !important;
+        }
+        .dark-popup .leaflet-popup-tip {
+          background: rgba(9, 9, 11, 0.92) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .dark-popup .leaflet-popup-close-button {
+          color: #a1a1aa !important;
+          font-size: 16px !important;
+        }
+        .dark-popup .leaflet-popup-close-button:hover {
+          color: #fff !important;
+        }
+        .leaflet-control-attribution {
+          background: rgba(9, 9, 11, 0.7) !important;
+          color: #555 !important;
+          font-size: 9px !important;
+        }
+        .leaflet-control-attribution a {
+          color: #666 !important;
+        }
+        .leaflet-control-zoom a {
+          background: rgba(9, 9, 11, 0.85) !important;
+          color: #f4f4f5 !important;
+          border-color: rgba(255,255,255,0.1) !important;
+        }
+        .leaflet-control-zoom a:hover {
+          background: rgba(30, 30, 35, 0.9) !important;
+        }
+      `}</style>
     </DashboardLayout>
   );
 }

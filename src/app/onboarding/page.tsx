@@ -73,11 +73,11 @@ export default function OnboardingPage() {
     // Update profile
     await supabase
       .from('profiles')
-      .update({ 
+      .upsert({ 
+        id: user.id,
         role: selectedRole,
         metadata: metadata
-      })
-      .eq('id', user.id);
+      });
       
     router.push(selectedRole === 'ngo' ? '/ngo-dashboard' : '/volunteer-dashboard');
   };
