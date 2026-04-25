@@ -69,7 +69,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const roleLabel = actualRole === "ngo" ? "NGO" : actualRole === "volunteer" ? "Volunteer" : "Admin";
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-helvetica flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-background text-foreground font-helvetica flex flex-col relative">
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-5 border-b border-foreground/[0.06] bg-background/80 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-3">
@@ -81,11 +81,11 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
           </Link>
           <div className="hidden sm:block h-4 w-px bg-foreground/[0.08] ml-2" />
           <div className="relative hidden sm:block">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-dim" />
             <input
               type="text"
               placeholder="Search..."
-              className="pl-9 pr-4 py-1.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-lg text-sm focus:outline-none focus:border-foreground/20 text-gray-300 w-56 transition-all focus:w-72 placeholder:text-gray-600"
+              className="pl-9 pr-4 py-1.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-lg text-sm focus:outline-none focus:border-foreground/20 text-foreground w-56 transition-all focus:w-72 placeholder:text-accent-dim"
             />
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             {user?.user_metadata?.avatar_url ? (
               <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-7 h-7 rounded-full border border-foreground/20" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-gray-600 to-gray-400 border border-foreground/20" />
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-foreground/40 to-foreground/60 border border-foreground/20" />
             )}
             <div className="hidden sm:flex flex-col">
               <span className="text-xs font-semibold text-foreground">{user?.user_metadata?.full_name || roleLabel}</span>
@@ -120,7 +120,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       <main className="flex-1 flex flex-col h-full overflow-hidden pb-24">
         <div className="flex-1 overflow-auto relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-foreground/[0.02] blur-[120px] rounded-full pointer-events-none" />
-          <div className="relative z-10 h-full">
+          <div className="relative h-full">
             {children}
           </div>
         </div>

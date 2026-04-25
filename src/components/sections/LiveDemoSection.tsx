@@ -47,7 +47,7 @@ export default function LiveDemoSection() {
 
   return (
     <section id="demo-section" className="py-16 md:py-20 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.03),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--glass-highlight),transparent_60%)]" />
 
       <div className="container relative z-10 mx-auto px-6 max-w-5xl">
         <div className="text-center mb-12">
@@ -64,12 +64,12 @@ export default function LiveDemoSection() {
           </p>
         </div>
 
-        <div className="glass-panel rounded-2xl border border-foreground/[0.06] overflow-hidden shadow-[0_0_60px_rgba(255,255,255,0.03)] shimmer-border">
+        <div className="glass-panel rounded-2xl border border-foreground/[0.06] overflow-hidden shadow-[0_0_60px_var(--glow-color)] shimmer-border">
           {/* Mac-like Header */}
           <div className="h-11 bg-foreground/[0.03] border-b border-foreground/[0.04] flex items-center px-4 gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-600" />
-            <div className="w-3 h-3 rounded-full bg-gray-500" />
-            <div className="w-3 h-3 rounded-full bg-gray-400" />
+            <div className="w-3 h-3 rounded-full bg-foreground/20" />
+            <div className="w-3 h-3 rounded-full bg-foreground/15" />
+            <div className="w-3 h-3 rounded-full bg-foreground/10" />
             <div className="mx-auto text-[11px] text-accent-dim font-mono tracking-wider">agent_core_v2.sh</div>
           </div>
 
@@ -81,7 +81,7 @@ export default function LiveDemoSection() {
                   <Terminal size={14} />
                   <span>Incoming Report (Field Node)</span>
                 </div>
-                <div className="bg-background/30 border border-foreground/[0.06] rounded-xl p-4 text-gray-300 min-h-[52px] flex items-center">
+                <div className="bg-foreground/[0.03] border border-foreground/[0.06] rounded-xl p-4 text-foreground/70 min-h-[52px] flex items-center">
                   <span className="text-accent-dim mr-2">{">"}</span>
                   {typedText}
                   <motion.span
@@ -109,7 +109,7 @@ export default function LiveDemoSection() {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-background/30 border border-foreground/[0.06] rounded-xl p-4 space-y-2.5 text-xs"
+                        className="bg-foreground/[0.03] border border-foreground/[0.06] rounded-xl p-4 space-y-2.5 text-xs"
                       >
                         <div className="flex justify-between items-center border-b border-foreground/[0.04] pb-2">
                           <span className="text-accent-dim">Location:</span>
@@ -117,7 +117,7 @@ export default function LiveDemoSection() {
                         </div>
                         <div className="flex justify-between items-center border-b border-foreground/[0.04] pb-2">
                           <span className="text-accent-dim">Resource:</span>
-                          <span className="text-gray-200 font-semibold">Water (2500L Req)</span>
+                          <span className="text-foreground/80 font-semibold">Water (2500L Req)</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-foreground/[0.04] pb-2">
                           <span className="text-accent-dim">Priority:</span>
@@ -125,7 +125,7 @@ export default function LiveDemoSection() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-accent-dim">Available Vols:</span>
-                          <span className="text-gray-300 font-semibold">18 Nearby</span>
+                          <span className="text-foreground/70 font-semibold">18 Nearby</span>
                         </div>
                       </motion.div>
                     )}
@@ -135,13 +135,12 @@ export default function LiveDemoSection() {
             </div>
 
             {/* Right Side - Map / Heatmap Result */}
-            <div className="relative bg-background/20 rounded-xl border border-foreground/[0.06] overflow-hidden flex items-center justify-center">
-              {/* Map grid */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:30px_30px]" />
+            <div className="relative bg-foreground/[0.02] rounded-xl border border-foreground/[0.06] overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--glass-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--glass-border)_1px,transparent_1px)] bg-[size:30px_30px]" />
 
               {!step ? (
-                <div className="text-gray-600 font-mono text-[11px] text-center z-10 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-600 animate-pulse" />
+                <div className="text-accent-dim font-mono text-[11px] text-center z-10 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent-dim animate-pulse" />
                   Awaiting data stream...
                 </div>
               ) : (
@@ -153,7 +152,7 @@ export default function LiveDemoSection() {
                         <motion.svg className="absolute inset-0 w-full h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                           <motion.path
                             d="M 50 150 Q 150 50 250 200 T 400 100"
-                            fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2"
+                            fill="none" stroke="var(--glass-border)" strokeWidth="2"
                             initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5 }}
                           />
                         </motion.svg>
@@ -169,8 +168,8 @@ export default function LiveDemoSection() {
                             transition={{ duration: 2, repeat: Infinity }}
                             className="absolute w-24 h-24 bg-foreground rounded-full blur-xl"
                           />
-                          <div className="relative w-4 h-4 bg-foreground rounded-full border-2 border-gray-300 shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
-                          <div className="mt-2 px-3 py-1 bg-foreground/10 border border-foreground/20 rounded-lg text-[9px] text-gray-200 backdrop-blur-sm whitespace-nowrap font-mono tracking-wider">
+                          <div className="relative w-4 h-4 bg-foreground rounded-full border-2 border-foreground/60 shadow-[0_0_20px_var(--glow-strong)]" />
+                          <div className="mt-2 px-3 py-1 bg-foreground/10 border border-foreground/20 rounded-lg text-[9px] text-foreground/70 backdrop-blur-sm whitespace-nowrap font-mono tracking-wider">
                             SECTOR 7 — WATER REQ
                           </div>
                         </motion.div>
@@ -180,7 +179,7 @@ export default function LiveDemoSection() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.5 }}
-                          className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-foreground/10 border border-foreground/15 text-gray-200 px-4 py-2 rounded-xl text-[11px] flex items-center gap-2 backdrop-blur-md whitespace-nowrap font-medium"
+                          className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-foreground/10 border border-foreground/15 text-foreground/70 px-4 py-2 rounded-xl text-[11px] flex items-center gap-2 backdrop-blur-md whitespace-nowrap font-medium"
                         >
                           <CheckCircle2 size={13} />
                           Dispatched 18 Volunteers

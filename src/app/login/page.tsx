@@ -81,7 +81,7 @@ export default function LoginPage() {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm flex items-center justify-center gap-3 hover:bg-gray-200 active:scale-[0.98] transition-all"
+            className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm flex items-center justify-center gap-3 hover:bg-foreground/80 active:scale-[0.98] transition-all"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -95,7 +95,7 @@ export default function LoginPage() {
           {/* <div className="mt-8 text-center border-t border-foreground/[0.08] pt-6">
             <p className="text-xs text-accent-dim">
               <Shield size={12} className="inline mr-1.5 -mt-0.5" />
-              Secure authentication via Supabase
+              Secure authentication via Firebase
             </p>
           </div> */}
         </motion.div>

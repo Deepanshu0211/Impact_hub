@@ -224,14 +224,14 @@ export default function NGODashboard() {
                     value={reportText}
                     onChange={(e) => setReportText(e.target.value)}
                     placeholder="Enter raw field data. e.g. '500 people need water in Sector 7 due to flooding...'"
-                    className="w-full h-32 px-4 py-3 rounded-xl bg-background/50 backdrop-blur-md border border-foreground/[0.1] text-sm text-foreground placeholder:text-gray-500 focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 resize-none transition-all shadow-inner font-mono"
+                    className="w-full h-32 px-4 py-3 rounded-xl bg-background/50 backdrop-blur-md border border-foreground/[0.1] text-sm text-foreground placeholder:text-accent-muted focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 resize-none transition-all shadow-inner font-mono"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting || !reportText.trim()}
-                  className="w-full h-12 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
+                  className="w-full h-12 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-foreground/80 hover:shadow-[0_0_20px_var(--shimmer-c)] active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
                 >
                   {isSubmitting ? (
                     <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-4 h-4 border-2 border-background/20 border-t-black rounded-full" /> Processing with Gemini...</>
@@ -302,7 +302,7 @@ export default function NGODashboard() {
                         <span className="text-[9px] text-accent-muted">{getTimeAgo(ext.created_at)}</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-[9px] font-mono text-gray-300">
+                        <span className="px-1.5 py-0.5 rounded bg-foreground/[0.06] text-[9px] font-mono text-foreground/70">
                           {ext.extracted_data?.category}
                         </span>
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider ${ext.extracted_data?.priority === 'CRITICAL' ? 'bg-foreground text-background' : 'bg-foreground/10 text-foreground'}`}>
@@ -353,7 +353,7 @@ export default function NGODashboard() {
                  <div className="h-64 flex flex-col items-center justify-center text-accent-dim text-sm">
                    <MapPin size={32} className="opacity-20 mb-3" />
                    <span>No active incidents detected.</span>
-                   <span className="text-[11px] text-gray-600 mt-1">Submit a field report to create one.</span>
+                   <span className="text-[11px] text-accent-dim mt-1">Submit a field report to create one.</span>
                  </div>
               ) : (
                 <div className="space-y-2">
@@ -372,12 +372,12 @@ export default function NGODashboard() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wider border ${
                             need.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20" :
-                            need.priority === "HIGH" ? "bg-foreground/[0.06] text-gray-300 border-foreground/10" :
+                            need.priority === "HIGH" ? "bg-foreground/[0.06] text-foreground/70 border-foreground/10" :
                             "bg-foreground/[0.03] text-accent-dim border-foreground/[0.06]"
                           }`}>
                             {need.priority}
                           </span>
-                          <span className="px-2 py-1 rounded-md bg-foreground/[0.03] border border-foreground/[0.06] text-[10px] font-medium text-gray-400">
+                          <span className="px-2 py-1 rounded-md bg-foreground/[0.03] border border-foreground/[0.06] text-[10px] font-medium text-accent-muted">
                             {need.type}
                           </span>
                           {need.affected && need.affected !== 'Unknown' && (

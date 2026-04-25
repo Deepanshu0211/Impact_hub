@@ -338,7 +338,7 @@ export default function VolunteerDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground mb-0.5">{sug.title}</div>
                     <p className="text-xs text-accent-dim leading-relaxed line-clamp-2">{sug.body}</p>
-                    <div className="text-[10px] text-gray-600 mt-1">{getTimeAgo(sug.created_at)}</div>
+                    <div className="text-[10px] text-accent-dim mt-1">{getTimeAgo(sug.created_at)}</div>
                   </div>
                   <button onClick={() => dismissSuggestion(sug.id)}
                     className="shrink-0 text-accent-dim hover:text-foreground p-1 rounded hover:bg-foreground/[0.04] transition-colors" title="Dismiss">
@@ -398,7 +398,7 @@ export default function VolunteerDashboard() {
                   <div className="mt-5 flex gap-2 pl-2">
                     <button 
                       onClick={() => completeMission(a.id, a.incident_id)}
-                      className="w-full h-11 rounded-xl bg-foreground text-background hover:bg-gray-200 text-sm font-bold flex justify-center items-center gap-2 transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
+                      className="w-full h-11 rounded-xl bg-foreground text-background hover:bg-foreground/80 text-sm font-bold flex justify-center items-center gap-2 transition-all hover:shadow-[0_0_20px_var(--shimmer-c)] active:scale-[0.98]"
                     >
                       <CheckCircle2 size={16} /> Mark Mission Completed
                     </button>
@@ -451,8 +451,8 @@ export default function VolunteerDashboard() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-foreground text-lg">{mission.location}</span>
                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border ${
-                              mission.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20 shadow-[0_0_10px_rgba(255,255,255,0.1)]" :
-                              mission.priority === "HIGH" ? "bg-foreground/[0.06] text-gray-300 border-foreground/10" :
+                              mission.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20 shadow-[0_0_10px_var(--glass-border)]" :
+                              mission.priority === "HIGH" ? "bg-foreground/[0.06] text-foreground/70 border-foreground/10" :
                               "bg-foreground/[0.03] text-accent-dim border-foreground/[0.06]"
                             }`}>
                               {mission.priority}
@@ -474,7 +474,7 @@ export default function VolunteerDashboard() {
                               ? "bg-foreground/10 text-foreground border border-foreground/20"
                               : mission.status === 'In Transit' 
                               ? "bg-foreground/[0.05] text-accent-dim cursor-not-allowed border border-foreground/[0.05]"
-                              : "bg-foreground text-background hover:bg-gray-200 hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] group-hover:scale-105"
+                              : "bg-foreground text-background hover:bg-foreground/80 hover:shadow-[0_0_15px_var(--shimmer-b)] group-hover:scale-105"
                           }`}
                         >
                           {acceptedMission === mission.id ? (
@@ -498,28 +498,26 @@ export default function VolunteerDashboard() {
       {/* AI Briefing Modal */}
       <AnimatePresence>
         {showAIBriefing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            onClick={() => { setShowAIBriefing(false); setPendingDeployId(null); }}
-          >
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            
-            {/* Modal */}
+          <div className="fixed inset-0 z-[100]">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-lg bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-2xl overflow-hidden"
-            >
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { setShowAIBriefing(false); setPendingDeployId(null); }}
+            />
+            <div className="fixed inset-0 overflow-y-auto pointer-events-none">
+              <div className="flex min-h-full items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-background border border-foreground/10 rounded-2xl shadow-2xl pointer-events-auto my-8 overflow-hidden"
+                >
               {/* Header glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-60 h-20 bg-foreground/5 blur-[40px] rounded-full pointer-events-none" />
 
-              <div className="p-6 border-b border-foreground/[0.06] flex items-center justify-between relative">
+              <div className="p-6 border-b border-foreground/[0.06] flex items-center justify-between relative shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-foreground/10 border border-foreground/20 flex items-center justify-center">
                     <BrainCircuit size={16} className="text-foreground" />
@@ -543,7 +541,7 @@ export default function VolunteerDashboard() {
                   <span>Loading AI analysis...</span>
                 </div>
               ) : aiBriefingData ? (
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto">
                   {/* Key data */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-center">
@@ -600,15 +598,17 @@ export default function VolunteerDashboard() {
                     </button>
                     <button
                       onClick={confirmDeploy}
-                      className="flex-1 h-11 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-all"
+                      className="flex-1 h-11 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-foreground/80 hover:shadow-[0_0_20px_var(--shimmer-c)] active:scale-[0.98] transition-all"
                     >
                       <Zap size={14} /> Confirm Deploy
                     </button>
                   </div>
                 </div>
               ) : null}
-            </motion.div>
-          </motion.div>
+                </motion.div>
+              </div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </DashboardLayout>

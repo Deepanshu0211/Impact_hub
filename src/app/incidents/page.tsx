@@ -118,7 +118,7 @@ export default function IncidentsPage() {
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] text-xs text-foreground font-medium">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Real-time from Supabase
+            Real-time from Firebase
           </div>
         </div>
 
@@ -141,13 +141,13 @@ export default function IncidentsPage() {
         {/* Filters & Search */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-dim" />
             <input
               type="text"
               placeholder="Search by location, type, or description..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-xl text-sm focus:outline-none focus:border-foreground/15 text-gray-300 placeholder:text-gray-600 transition-all"
+              className="w-full pl-9 pr-4 py-2.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-xl text-sm focus:outline-none focus:border-foreground/15 text-foreground/70 placeholder:text-accent-dim transition-all"
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -206,7 +206,7 @@ export default function IncidentsPage() {
                 )}
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-[10px] text-gray-600">
+                  <div className="flex items-center gap-3 text-[10px] text-accent-dim">
                     <span className="flex items-center gap-1"><Users size={10} /> {inc.affected || "?"} affected</span>
                     <span className="flex items-center gap-1"><Clock size={10} /> {getTimeAgo(inc.created_at)}</span>
                   </div>
@@ -229,28 +229,29 @@ export default function IncidentsPage() {
       {/* Detail Modal */}
       <AnimatePresence>
         {selectedIncident && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            onClick={() => setSelectedIncident(null)}
-          >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="fixed inset-0 z-[100]">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={e => e.stopPropagation()}
-              className="relative w-full max-w-lg bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-2xl overflow-hidden"
-            >
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSelectedIncident(null)}
+            />
+            <div className="fixed inset-0 overflow-y-auto pointer-events-none">
+              <div className="flex min-h-full items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-background border border-foreground/10 rounded-2xl shadow-2xl pointer-events-auto my-8 overflow-hidden"
+                >
               {/* Priority bar */}
-              <div className={`h-1 w-full ${
+              <div className={`h-1 w-full shrink-0 ${
                 selectedIncident.priority === "CRITICAL" ? "bg-red-500/60" :
                 selectedIncident.priority === "HIGH" ? "bg-amber-500/60" : "bg-emerald-500/60"
               }`} />
 
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-5">
                   <div>
@@ -323,8 +324,10 @@ export default function IncidentsPage() {
                   Close
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+                </motion.div>
+              </div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </DashboardLayout>

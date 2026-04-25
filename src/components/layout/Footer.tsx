@@ -36,7 +36,7 @@ export default function Footer() {
       <div className="section-divider" />
 
       {/* Background Glow */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-white/[0.02] to-transparent blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-foreground/[0.02] to-transparent blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 pt-16 pb-8">
         <div className="container mx-auto px-6 max-w-7xl">
@@ -48,7 +48,7 @@ export default function Footer() {
             viewport={{ once: true }}
             className="mb-16 p-8 rounded-2xl glass border border-foreground/[0.06] relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] via-transparent to-white/[0.03] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.03] via-transparent to-foreground/[0.03] pointer-events-none" />
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
               <div>
                 <h3 className="text-xl font-bold text-foreground mb-1 flex items-center gap-2">
@@ -131,12 +131,12 @@ export default function Footer() {
               © {new Date().getFullYear()} Impact Hub. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-xs text-accent-dim">
-              <Link href="#" className="hover:text-gray-300 transition-colors">Privacy</Link>
-              <Link href="#" className="hover:text-gray-300 transition-colors">Terms</Link>
-              <Link href="#" className="hover:text-gray-300 transition-colors">Security</Link>
+              <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
+              <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
+              <Link href="#" className="hover:text-foreground transition-colors">Security</Link>
             </div>
             <p className="text-xs text-accent-dim flex items-center gap-1.5">
-              Built with <Heart size={10} className="text-foreground fill-white" /> for Hackathon Excellence
+              Built with <Heart size={10} className="text-foreground fill-foreground" /> for Hackathon Excellence
             </p>
           </div>
         </div>

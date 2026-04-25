@@ -135,7 +135,7 @@ export default function AIBriefingPage() {
             { icon: HeartHandshake, label: "Match You" },
           ].map((s, i) => (
             <div key={i} className="flex items-center gap-2 shrink-0">
-              {i > 0 && <ArrowRight size={10} className="text-gray-700" />}
+              {i > 0 && <ArrowRight size={10} className="text-accent-dim" />}
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06]">
                 <s.icon size={12} className="text-accent-muted" />
                 <span className="text-[10px] font-medium text-accent-dim whitespace-nowrap">{s.label}</span>
@@ -179,7 +179,7 @@ export default function AIBriefingPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground mb-0.5">{sug.title}</div>
                     <p className="text-xs text-accent-dim leading-relaxed line-clamp-2">{sug.body}</p>
-                    <div className="text-[10px] text-gray-600 mt-1">{getTimeAgo(sug.created_at)}</div>
+                    <div className="text-[10px] text-accent-dim mt-1">{getTimeAgo(sug.created_at)}</div>
                   </div>
                 </motion.div>
               ))}
@@ -216,8 +216,8 @@ export default function AIBriefingPage() {
               <div className="h-40 flex flex-col items-center justify-center text-accent-dim text-sm">
                 <HeartHandshake size={32} className="opacity-20 mb-3" />
                 <span>No missions assigned yet.</span>
-                <span className="text-[11px] text-gray-600 mt-1">Go to your Dashboard to deploy on active incidents.</span>
-                <Link href="/volunteer-dashboard" className="mt-4 px-4 py-2 rounded-lg bg-foreground text-background text-xs font-bold hover:bg-gray-200 transition-colors flex items-center gap-1.5">
+                <span className="text-[11px] text-accent-dim mt-1">Go to your Dashboard to deploy on active incidents.</span>
+                <Link href="/volunteer-dashboard" className="mt-4 px-4 py-2 rounded-lg bg-foreground text-background text-xs font-bold hover:bg-foreground/80 transition-colors flex items-center gap-1.5">
                   <ArrowRight size={12} /> Go to Dashboard
                 </Link>
               </div>
@@ -270,7 +270,7 @@ export default function AIBriefingPage() {
 
                     {/* Meta + Actions */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-[10px] text-gray-600">
+                      <div className="flex items-center gap-3 text-[10px] text-accent-dim">
                         <span className="flex items-center gap-1"><Clock size={10} /> {getTimeAgo(m.created_at)}</span>
                       </div>
 

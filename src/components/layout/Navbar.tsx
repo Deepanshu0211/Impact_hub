@@ -136,7 +136,7 @@ export default function Navbar() {
                     onMouseEnter={() => setHoveredLink(link.href)}
                     onMouseLeave={() => setHoveredLink(null)}
                     className={`relative px-4 py-2 text-[13px] font-medium transition-colors duration-300 flex items-center gap-1.5 ${
-                      isActive ? "text-foreground" : "text-accent-dim hover:text-gray-200"
+                      isActive ? "text-foreground" : "text-accent-dim hover:text-foreground"
                     }`}
                   >
                     {link.icon && <link.icon size={14} className={isActive ? "text-foreground" : "text-accent-dim"} />}
@@ -199,7 +199,7 @@ export default function Navbar() {
                       />
                     ) : (
                       <div 
-                        className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-600 to-gray-400 border border-foreground/20 hover:scale-105 transition-transform cursor-pointer relative z-10" 
+                        className="w-8 h-8 rounded-full bg-gradient-to-tr from-foreground/40 to-foreground/60 border border-foreground/20 hover:scale-105 transition-transform cursor-pointer relative z-10" 
                       />
                     )}
 
@@ -275,7 +275,7 @@ export default function Navbar() {
                   {user?.user_metadata?.avatar_url ? (
                     <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-10 h-10 rounded-full border border-foreground/20" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-600 to-gray-400 border border-foreground/20" />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-foreground/40 to-foreground/60 border border-foreground/20" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-foreground">{user?.user_metadata?.full_name || 'User'}</span>

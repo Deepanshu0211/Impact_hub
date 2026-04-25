@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Bot, LineChart, Mic } from "lucide-react";
+import { Bot, LineChart, Mic, BanknoteArrowUp, Brain, Smartphone } from "lucide-react";
 
 export default function RoadmapSection() {
   const targetRef = useRef<HTMLDivElement>(null);
@@ -10,31 +10,55 @@ export default function RoadmapSection() {
     target: targetRef,
   });
 
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-65%"]);
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-80%"]);
 
   const roadmapItems = [
+     {
+      icon: <BanknoteArrowUp className="w-9 h-9 text-foreground" />,
+      title: "Volunteer & Earn",
+      description: "Match unemployed youth with local NGO tasks to earn micro-stipends and verified skill credentials, turning idle potential into community impact at scale across India's 1.4 billion population.",
+      q: "Q1 2026",
+      gradient: "from-foreground/[0.06] to-transparent",
+      iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
+    },
+    {
+      icon: <Brain className="w-9 h-9 text-foreground" />,
+      title: "Gemma AI Integration",
+      description: "Deploy on-device Gemma models to process paper surveys offline in regional languages and intelligently match volunteer skills to community needs, even in rural zero-connectivity zones.",
+      q: "Q2 2026",
+      gradient: "from-foreground/[0.06] to-transparent",
+      iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
+    },
+    {
+      icon: <Smartphone className="w-9 h-9 text-foreground" />,
+      title: "Flutter Cross-Platform App",
+      description: "Build a single lightweight Flutter app accessible on any Android or iOS device, giving volunteers, NGOs, and field workers a seamless unified experience across India's fragmented device ecosystem.",
+      q: "Q3 2026",
+      gradient: "from-foreground/[0.06] to-transparent",
+      iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
+    },
     {
       icon: <Bot className="w-9 h-9 text-foreground" />,
       title: "Autonomous Command Agent",
       description: "AI that doesn't just suggest, but safely executes resource allocation based on real-time field constraints.",
-      q: "Q3 2026",
-      gradient: "from-white/[0.06] to-transparent",
+      q: "Q4 2026",
+      gradient: "from-foreground/[0.06] to-transparent",
       iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
     },
     {
       icon: <LineChart className="w-9 h-9 text-foreground" />,
       title: "Predictive Risk Forecasting",
       description: "Pre-position volunteers and supplies before the crisis peaks by analyzing historical incident data.",
-      q: "Q4 2026",
-      gradient: "from-white/[0.05] to-transparent",
+      q: "Q1 2027",
+      gradient: "from-foreground/[0.05] to-transparent",
       iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
     },
     {
       icon: <Mic className="w-9 h-9 text-foreground" />,
       title: "Voice Emergency Intake",
       description: "Multilingual voice-to-structured-data translation for instant reporting without internet or smartphones.",
-      q: "Q1 2027",
-      gradient: "from-white/[0.06] to-transparent",
+      q: "Q2 2027",
+      gradient: "from-foreground/[0.06] to-transparent",
       iconGlow: "group-hover:bg-foreground/[0.1] group-hover:border-foreground/20 group-hover:shadow-[0_0_25px_rgba(255,255,255,0.1)]",
     }
   ];
@@ -47,10 +71,13 @@ export default function RoadmapSection() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-foreground/[0.06] bg-foreground/[0.03] mb-5 text-xs font-medium text-accent-muted uppercase tracking-[0.15em]">
             Roadmap
           </div>
-          <h2 className="text-3xl md:text-[2.75rem] font-bold tracking-[-0.03em] leading-tight">
+          <h2 className="text-3xl md:text-[2.75rem] font-bold tracking-[-0.03em] leading-tight mb-3">
             The Future of{" "}
             <span className="text-gradient-hero font-serif italic font-light">Response</span>
           </h2>
+          <p className="text-accent-muted text-sm tracking-wide uppercase font-semibold">
+            Powered by Firebase
+          </p>
         </div>
 
         {/* Horizontal scroll container */}

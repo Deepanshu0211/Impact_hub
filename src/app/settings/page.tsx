@@ -15,7 +15,7 @@ export default function SettingsPage() {
 
   const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
     <button onClick={onChange} className={`w-10 h-5 rounded-full transition-all relative ${checked ? "bg-foreground" : "bg-foreground/[0.1]"}`}>
-      <div className={`w-4 h-4 rounded-full transition-all absolute top-0.5 ${checked ? "left-5.5 bg-background" : "left-0.5 bg-gray-500"}`} />
+      <div className={`w-4 h-4 rounded-full transition-all absolute top-0.5 ${checked ? "left-5.5 bg-background" : "left-0.5 bg-accent-muted"}`} />
     </button>
   );
 
@@ -28,7 +28,7 @@ export default function SettingsPage() {
             <p className="text-sm text-accent-dim mt-0.5">Manage your account, notifications, and AI preferences.</p>
           </div>
           <button onClick={handleSave}
-            className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-gray-200 active:scale-[0.98] transition-all">
+            className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-foreground/80 active:scale-[0.98] transition-all">
             {saved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>}
           </button>
         </div>
@@ -104,13 +104,13 @@ export default function SettingsPage() {
                 <input type="range" min={50} max={100} value={aiSettings.confidenceThreshold}
                   onChange={e => setAiSettings({ ...aiSettings, confidenceThreshold: Number(e.target.value) })}
                   className="w-full h-1.5 bg-foreground/[0.06] rounded-full appearance-none cursor-pointer accent-white" />
-                <div className="flex justify-between text-[10px] text-gray-600 mt-1"><span>50% (Aggressive)</span><span>100% (Conservative)</span></div>
+                <div className="flex justify-between text-[10px] text-accent-dim mt-1"><span>50% (Aggressive)</span><span>100% (Conservative)</span></div>
               </div>
 
               <div>
                 <label className="block text-[11px] text-accent-dim uppercase tracking-wider mb-1.5 font-medium">AI Model</label>
                 <select value={aiSettings.model} onChange={e => setAiSettings({ ...aiSettings, model: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-gray-300 focus:outline-none focus:border-foreground/15 transition-all appearance-none">
+                  className="w-full px-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground/70 focus:outline-none focus:border-foreground/15 transition-all appearance-none">
                   <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
                   <option value="gemini-2.0-pro">Gemini 2.0 Pro (Accurate)</option>
                   <option value="gemini-1.5-flash">Gemini 1.5 Flash (Legacy)</option>

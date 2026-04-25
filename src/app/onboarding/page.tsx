@@ -121,11 +121,11 @@ export default function OnboardingPage() {
                   className="group relative p-6 rounded-2xl border border-foreground/[0.08] bg-foreground/[0.02] hover:bg-foreground/[0.05] hover:border-foreground/[0.15] transition-all duration-300 text-left"
                 >
                   <div className="w-12 h-12 rounded-xl bg-foreground/[0.06] border border-foreground/[0.08] flex items-center justify-center mb-4 group-hover:bg-foreground/[0.1] transition-all">
-                    <Building2 size={22} className="text-gray-300" />
+                    <Building2 size={22} className="text-foreground/70" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">Organization</h3>
                   <p className="text-xs text-accent-dim leading-relaxed">Report incidents, request volunteers, and manage relief efforts.</p>
-                  <ArrowRight size={16} className="absolute top-6 right-6 text-gray-600 group-hover:text-foreground group-hover:translate-x-1 transition-all" />
+                  <ArrowRight size={16} className="absolute top-6 right-6 text-accent-dim group-hover:text-foreground group-hover:translate-x-1 transition-all" />
                 </button>
 
                 <button
@@ -133,11 +133,11 @@ export default function OnboardingPage() {
                   className="group relative p-6 rounded-2xl border border-foreground/[0.08] bg-foreground/[0.02] hover:bg-foreground/[0.05] hover:border-foreground/[0.15] transition-all duration-300 text-left"
                 >
                   <div className="w-12 h-12 rounded-xl bg-foreground/[0.06] border border-foreground/[0.08] flex items-center justify-center mb-4 group-hover:bg-foreground/[0.1] transition-all">
-                    <HandHeart size={22} className="text-gray-300" />
+                    <HandHeart size={22} className="text-foreground/70" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">Volunteer</h3>
                   <p className="text-xs text-accent-dim leading-relaxed">Accept missions, deploy to hotspots, and track your impact.</p>
-                  <ArrowRight size={16} className="absolute top-6 right-6 text-gray-600 group-hover:text-foreground group-hover:translate-x-1 transition-all" />
+                  <ArrowRight size={16} className="absolute top-6 right-6 text-accent-dim group-hover:text-foreground group-hover:translate-x-1 transition-all" />
                 </button>
               </div>
             </motion.div>
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
                       value={formData.location}
                       onChange={e => setFormData({...formData, location: e.target.value})}
                       placeholder="e.g. Downtown Sector 4"
-                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-gray-600"
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-accent-dim"
                     />
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
                       value={formData.skills}
                       onChange={e => setFormData({...formData, skills: e.target.value})}
                       placeholder="e.g. Medical, Logistics, Driving"
-                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-gray-600"
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-accent-dim"
                     />
                   </div>
                 </div>
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
                 <button
                   onClick={handleComplete}
                   disabled={saving || !formData.location || !formData.skills}
-                  className="w-full mt-6 bg-foreground text-background font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-6 bg-foreground text-background font-semibold py-3 rounded-lg hover:bg-foreground/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle2 size={18} /> Complete Setup</>}
                 </button>
@@ -236,7 +236,7 @@ export default function OnboardingPage() {
                       value={formData.orgName}
                       onChange={e => setFormData({...formData, orgName: e.target.value})}
                       placeholder="Official Name"
-                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-gray-600"
+                      className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-accent-dim"
                     />
                   </div>
                 </div>
@@ -251,7 +251,7 @@ export default function OnboardingPage() {
                         value={formData.regNumber}
                         onChange={e => setFormData({...formData, regNumber: e.target.value})}
                         placeholder="Tax / ID"
-                        className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-gray-600"
+                        className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-accent-dim"
                       />
                     </div>
                   </div>
@@ -264,7 +264,7 @@ export default function OnboardingPage() {
                         value={formData.baseLocation}
                         onChange={e => setFormData({...formData, baseLocation: e.target.value})}
                         placeholder="City / HQ"
-                        className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-gray-600"
+                        className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-foreground/20 transition-all text-foreground placeholder:text-accent-dim"
                       />
                     </div>
                   </div>
@@ -290,7 +290,7 @@ export default function OnboardingPage() {
                 <button
                   onClick={handleComplete}
                   disabled={saving || !formData.orgName || !formData.regNumber}
-                  className="w-full mt-6 bg-foreground text-background font-semibold py-3 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-6 bg-foreground text-background font-semibold py-3 rounded-lg hover:bg-foreground/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 size={18} className="animate-spin" /> : <><BadgeCheck size={18} /> Complete Verification</>}
                 </button>

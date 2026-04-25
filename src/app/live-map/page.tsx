@@ -320,14 +320,14 @@ export default function LiveMapPage() {
                   </div>
                   <div className="text-xs text-accent-dim mb-1">{inc.type}</div>
                   {inc.ngo_name && <div className="text-[10px] text-indigo-400 mb-1">📋 {inc.ngo_name}</div>}
-                  <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                  <div className="flex items-center gap-2 text-[10px] text-accent-dim">
                     {inc.status === "Processing" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Processing</>}
                     {inc.status === "Active" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Active</>}
                     {inc.status === "In Transit" && <><Clock size={10} />Dispatched</>}
                     {inc.status === "Resolved" && <><CheckCircle2 size={10} />Resolved</>}
                     <span className="ml-auto">{inc.affected} affected</span>
                   </div>
-                  <div className="text-[9px] text-gray-700 mt-1">{getTimeAgo(inc.created_at)}</div>
+                  <div className="text-[9px] text-accent-dim mt-1">{getTimeAgo(inc.created_at)}</div>
                 </button>
               ))
             )}
@@ -366,7 +366,7 @@ export default function LiveMapPage() {
         .leaflet-control-zoom a {
           background: rgba(9, 9, 11, 0.85) !important;
           color: #f4f4f5 !important;
-          border-color: rgba(255,255,255,0.1) !important;
+          border-color: var(--glass-border) !important;
         }
         .leaflet-control-zoom a:hover {
           background: rgba(30, 30, 35, 0.9) !important;

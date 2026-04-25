@@ -6,10 +6,10 @@ import { BrainCircuit, Image as ImageIcon, Map, HeartHandshake } from "lucide-re
 export default function SolutionSection() {
   const features = [
     {
-      icon: <BrainCircuit className="w-7 h-7 text-gray-300" />,
+      icon: <BrainCircuit className="w-7 h-7 text-foreground/70" />,
       title: "AI Data Extraction",
       description: "Messy reports become structured needs automatically using NLP engines.",
-      gradient: "from-white/[0.06] to-transparent",
+      gradient: "from-foreground/[0.06] to-transparent",
       borderHover: "hover:border-foreground/15",
       iconBg: "group-hover:bg-foreground/[0.08] group-hover:border-foreground/[0.15]",
     },
@@ -17,23 +17,23 @@ export default function SolutionSection() {
       icon: <ImageIcon className="w-7 h-7 text-accent-muted" />,
       title: "Vision Damage Analysis",
       description: "Upload images for instant hazard severity grading via computer vision.",
-      gradient: "from-white/[0.05] to-transparent",
+      gradient: "from-foreground/[0.05] to-transparent",
       borderHover: "hover:border-foreground/15",
       iconBg: "group-hover:bg-foreground/[0.08] group-hover:border-foreground/[0.15]",
     },
     {
-      icon: <Map className="w-7 h-7 text-gray-300" />,
+      icon: <Map className="w-7 h-7 text-foreground/70" />,
       title: "Live Heatmap Intelligence",
       description: "Critical zones pulse live on interactive operational maps in real-time.",
-      gradient: "from-white/[0.06] to-transparent",
+      gradient: "from-foreground/[0.06] to-transparent",
       borderHover: "hover:border-foreground/15",
       iconBg: "group-hover:bg-foreground/[0.08] group-hover:border-foreground/[0.15]",
     },
     {
-      icon: <HeartHandshake className="w-7 h-7 text-gray-300" />,
+      icon: <HeartHandshake className="w-7 h-7 text-foreground/70" />,
       title: "Smart Volunteer Matching",
       description: "Nearest skilled responders are automatically dispatched first.",
-      gradient: "from-white/[0.05] to-transparent",
+      gradient: "from-foreground/[0.05] to-transparent",
       borderHover: "hover:border-foreground/15",
       iconBg: "group-hover:bg-foreground/[0.08] group-hover:border-foreground/[0.15]",
     }
@@ -43,7 +43,7 @@ export default function SolutionSection() {
     <section id="technology" className="py-16 md:py-20 relative">
       {/* Subtle dot pattern */}
       <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none">
-        <div className="w-full h-full bg-[radial-gradient(circle,_rgba(255,255,255,0.8)_1px,_transparent_1px)] bg-[size:24px_24px]" />
+        <div className="w-full h-full bg-[radial-gradient(circle,_var(--foreground)_1px,_transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       <div className="container relative z-10 mx-auto px-6 max-w-7xl">

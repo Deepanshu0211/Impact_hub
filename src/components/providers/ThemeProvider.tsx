@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -26,8 +26,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove("dark");
       }
     } else {
-      // Default to light as per "white priority" request
-      document.documentElement.classList.remove("dark");
+      // Default to dark
+      document.documentElement.classList.add("dark");
     }
   }, []);
 
@@ -43,8 +43,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Prevent hydration mismatch by rendering nothing or a stable layout before mount if necessary
-  // But here we can just render children and let CSS handle the flash
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}

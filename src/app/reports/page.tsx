@@ -257,7 +257,7 @@ export default function ReportsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold mb-1 tracking-tight">Impact Reports</h1>
-            <p className="text-sm text-accent-dim">Analytics and performance metrics — powered by live Supabase data.</p>
+            <p className="text-sm text-accent-dim">Analytics and performance metrics — powered by live Firebase data.</p>
           </div>
           <div className="flex gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] text-[10px] text-foreground font-bold">
@@ -270,7 +270,7 @@ export default function ReportsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Incidents", value: summaryStats.totalIncidents, icon: BarChart3, trend: "From Supabase" },
+            { label: "Total Incidents", value: summaryStats.totalIncidents, icon: BarChart3, trend: "From Firebase" },
             { label: "Resolution Rate", value: summaryStats.resolutionRate, icon: TrendingDown, trend: "Resolved / Total" },
             { label: "Avg Response", value: summaryStats.avgResponse, icon: Clock, trend: "Time to first deploy" },
             { label: "Registered Volunteers", value: summaryStats.activeVolunteers, icon: Users, trend: "Total signed up" },
@@ -279,10 +279,10 @@ export default function ReportsPage() {
               className="p-5 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06] hover:border-foreground/[0.1] transition-colors group">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-accent-dim font-medium">{s.label}</span>
-                <s.icon size={15} className="text-gray-600 group-hover:text-accent-muted transition-colors" />
+                <s.icon size={15} className="text-accent-dim group-hover:text-accent-muted transition-colors" />
               </div>
               <div className="text-2xl font-bold tracking-tight mb-1">{s.value}</div>
-              <div className="text-[11px] text-gray-600">{s.trend}</div>
+              <div className="text-[11px] text-accent-dim">{s.trend}</div>
             </motion.div>
           ))}
         </div>
@@ -306,7 +306,7 @@ export default function ReportsPage() {
                         <motion.div initial={{ height: 0 }} animate={{ height: `${(d.resolved / maxResolved) * 100}%` }} transition={{ duration: 0.8, delay: i * 0.08 + 0.1 }}
                           className="flex-1 bg-foreground/30 rounded-t" title={`Resolved: ${d.resolved}`} />
                       </div>
-                      <span className="text-[10px] text-gray-600 mt-1">{d.week}</span>
+                      <span className="text-[10px] text-accent-dim mt-1">{d.week}</span>
                     </div>
                   ))}
                 </div>
@@ -357,7 +357,7 @@ export default function ReportsPage() {
                         className="w-full bg-gradient-to-t from-white/20 to-white/5 rounded-t relative">
                         <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-accent-muted font-mono">{r.time}m</span>
                       </motion.div>
-                      <span className="text-[10px] text-gray-600 mt-2">{r.month}</span>
+                      <span className="text-[10px] text-accent-dim mt-2">{r.month}</span>
                     </div>
                   ))}
                 </div>
@@ -377,11 +377,11 @@ export default function ReportsPage() {
             className="xl:col-span-2 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06] overflow-hidden">
             <div className="p-5 border-b border-foreground/[0.04] flex justify-between items-center">
               <h2 className="font-semibold tracking-tight flex items-center gap-2 text-sm"><Trophy size={15} className="text-accent-muted" />Top Volunteers</h2>
-              <span className="text-[9px] bg-foreground/10 px-2 py-0.5 rounded font-mono tracking-widest">FROM SUPABASE</span>
+              <span className="text-[9px] bg-foreground/10 px-2 py-0.5 rounded font-mono tracking-widest">FROM FIREBASE</span>
             </div>
             {topVolunteers.length > 0 ? (
               <table className="w-full text-sm">
-                <thead className="text-[10px] text-gray-600 bg-foreground/[0.01] border-b border-foreground/[0.04] uppercase tracking-wider">
+                <thead className="text-[10px] text-accent-dim bg-foreground/[0.01] border-b border-foreground/[0.04] uppercase tracking-wider">
                   <tr>
                     <th className="px-5 py-3 text-left font-medium">#</th>
                     <th className="px-5 py-3 text-left font-medium">Volunteer</th>

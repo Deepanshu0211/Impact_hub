@@ -38,19 +38,15 @@ export default function HeroSection() {
 
   return (
     <section className="relative min-h-[100vh] flex items-center justify-center pt-20 pb-16 overflow-hidden">
-      {/* Deep Cinematic Lighting — Monochrome */}
-     <div className="absolute inset-0 z-[-9999] pointer-events-none">
-          {/* Dark side vignettes */}
-          <div className="absolute inset-y-0 left-0 w-[30%] bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-black/80 via-black/50 to-transparent" />
+      {/* Deep Cinematic Lighting — Theme-aware */}
+      <div className="absolute inset-0 z-[-9999] pointer-events-none">
+          {/* Subtle grid with smooth radial fade */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--glass-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--glass-border)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_40%,#000_10%,transparent_80%)]" />
 
           {/* Monochrome glow effects */}
           <div className="absolute top-[5%] left-[15%] w-[800px] h-[800px] opacity-15 bg-foreground/10 blur-[150px] rounded-full animate-pulse" />
-          <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-10 bg-gray-500/10 blur-[120px] rounded-full" style={{ animationDelay: "2s" }} />
+          <div className="absolute bottom-[15%] right-[10%] w-[600px] h-[600px] opacity-10 bg-foreground/10 blur-[120px] rounded-full" style={{ animationDelay: "2s" }} />
           <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] opacity-10 bg-foreground/5 blur-[100px] rounded-full" />
-
-          {/* Subtle grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_70%_70%_at_50%_50%,#000_20%,transparent_100%)]" />
         </div>
 
       {/* Floating 3D Objects (PS Context) */}
@@ -66,7 +62,7 @@ export default function HeroSection() {
             style={{ x: obj1X, y: obj1Y, translateZ: 100 }}
             animate={{ y: [-15, 15, -15], rotateZ: [-5, 5, -5] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[15%] left-[10%] md:left-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] w-48 rotate-[-12deg]"
+            className="absolute top-[15%] left-[10%] md:left-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_40px_var(--glow-color)] w-48 rotate-[-12deg]"
           >
             <FileText className="text-accent-muted w-7 h-7 mb-3" />
             <div className="w-full h-1.5 bg-foreground/8 rounded mb-1.5" />
@@ -79,11 +75,11 @@ export default function HeroSection() {
             style={{ x: obj2X, y: obj2Y, translateZ: 150 }}
             animate={{ y: [15, -15, 15], rotateZ: [5, -5, 5] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute top-[22%] right-[5%] md:right-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_50px_rgba(255,255,255,0.05)] w-52 rotate-[8deg] flex flex-col items-center text-center"
+            className="absolute top-[22%] right-[5%] md:right-[12%] glass-panel p-5 rounded-2xl border border-foreground/10 shadow-[0_0_50px_var(--glow-color)] w-52 rotate-[8deg] flex flex-col items-center text-center"
           >
             <div className="relative mb-3">
               <div className="absolute inset-0 bg-foreground blur-xl opacity-20 rounded-full" />
-              <MapPin className="text-gray-300 w-9 h-9 relative z-10 drop-shadow-lg" />
+              <MapPin className="text-foreground/70 w-9 h-9 relative z-10 drop-shadow-lg" />
             </div>
             <div className="text-sm font-bold text-foreground/90 mb-0.5">Sector 7 Crisis</div>
             <div className="text-[9px] text-accent-dim font-mono tracking-[0.2em] uppercase">Urgent Local Need</div>
@@ -94,9 +90,9 @@ export default function HeroSection() {
             style={{ x: obj3X, y: obj3Y, translateZ: 200 }}
             animate={{ y: [-10, 10, -10], rotateZ: [-2, 2, -2] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            className="absolute bottom-[18%] right-[18%] md:right-[28%] glass-panel p-4 rounded-full border border-foreground/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] flex items-center gap-3"
+            className="absolute bottom-[18%] right-[18%] md:right-[28%] glass-panel p-4 rounded-full border border-foreground/10 shadow-[0_0_40px_var(--glow-color)] flex items-center gap-3"
           >
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-foreground/50 to-foreground/80 flex items-center justify-center shadow-[0_0_15px_var(--glow-color)]">
               <UserCheck className="text-background w-5 h-5" />
             </div>
             <div className="pr-3">
@@ -113,10 +109,10 @@ export default function HeroSection() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-foreground/10 bg-foreground/[0.04] mb-6 backdrop-blur-md shadow-[0_0_25px_rgba(255,255,255,0.05)]"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-foreground/10 bg-foreground/[0.04] mb-6 backdrop-blur-md shadow-[0_0_25px_var(--glow-color)]"
         >
           <Activity size={14} className="text-accent-muted" />
-          <span className="text-xs font-semibold text-gray-300 tracking-[0.15em] uppercase">Smart Resource Allocation</span>
+          <span className="text-xs font-semibold text-foreground/70 tracking-[0.15em] uppercase">Smart Resource Allocation</span>
         </motion.div>
 
         {/* Dynamic Mixed Typography Headline */}
@@ -141,7 +137,7 @@ export default function HeroSection() {
 
           <span
             className="text-transparent"
-            style={{ WebkitTextStroke: "1.5px rgba(255,255,255,0.6)" }}
+            style={{ WebkitTextStroke: "1.5px var(--accent-muted)" }}
           >
             Save Lives.
           </span>
@@ -155,7 +151,7 @@ export default function HeroSection() {
         >
           <MagneticButton>
             <Link href="/login" className="group h-12 px-7 rounded-full border border-foreground/25 text-foreground font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:bg-foreground hover:text-background hover:border-foreground active:scale-[0.97] w-full sm:w-auto">
-              Launch Prototype
+             See It In Action
               <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform duration-300" />
             </Link>
           </MagneticButton>
@@ -166,7 +162,7 @@ export default function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1 }}
-        className="mt-12 flex items-center gap-6 rounded-full border border-foreground/10 bg-foreground/[0.04] px-5 py-3 text-xs text-accent-muted backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.18)]"
+        className="mt-12 flex items-center gap-6 rounded-full border border-foreground/10 bg-foreground/[0.04] px-5 py-3 text-xs text-accent-muted backdrop-blur-xl shadow-[0_8px_30px_var(--glass-shadow)]"
       >
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 rounded-full bg-foreground animate-pulse" />

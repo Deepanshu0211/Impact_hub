@@ -30,11 +30,11 @@ export default async function Dashboard() {
         <header className="h-16 flex items-center justify-between px-6 border-b border-foreground/[0.06] bg-background/80 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             <div className="relative hidden sm:block">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-dim" />
               <input 
                 type="text" 
                 placeholder="Search incidents, resources..." 
-                className="pl-9 pr-4 py-1.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-white/20 text-gray-300 w-64 transition-all focus:w-80"
+                className="pl-9 pr-4 py-1.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-foreground/20 text-foreground/70 w-64 transition-all focus:w-80"
               />
             </div>
           </div>

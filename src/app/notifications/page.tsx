@@ -141,12 +141,12 @@ export default function NotificationsPage() {
         {/* Notification List */}
         <div className="space-y-2">
           {loading ? (
-            <div className="text-center py-16 text-gray-600">
+            <div className="text-center py-16 text-accent-dim">
               <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto mb-3" />
               <p className="text-sm">Loading notifications...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 text-gray-600">
+            <div className="text-center py-16 text-accent-dim">
               <Bell size={32} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No notifications to show.</p>
             </div>
@@ -178,7 +178,7 @@ export default function NotificationsPage() {
                         {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />}
                       </div>
                       <p className="text-xs text-accent-dim leading-relaxed">{n.body}</p>
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-gray-600">
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-accent-dim">
                         <Clock size={10} /> {n.time}
                       </div>
                     </div>

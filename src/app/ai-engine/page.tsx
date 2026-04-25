@@ -124,12 +124,12 @@ export default function AIEnginePage() {
             {steps.map((s, i) => (
               <div key={i} className="flex items-center gap-2 shrink-0">
                 <motion.div animate={{ borderColor: pipelineStep === i ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.06)", backgroundColor: pipelineStep === i ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.02)" }} className="flex items-center gap-3 px-4 py-3 rounded-xl border min-w-[130px]">
-                  <s.icon size={16} className={pipelineStep === i ? "text-foreground" : "text-gray-600"} />
+                  <s.icon size={16} className={pipelineStep === i ? "text-foreground" : "text-accent-dim"} />
                   <span className={`text-xs font-medium ${pipelineStep === i ? "text-foreground" : "text-accent-dim"}`}>{s.label}</span>
                   {pipelineStep > i && <CheckCircle2 size={12} className="text-accent-dim ml-auto" />}
                   {pipelineStep === i && <Cpu size={12} className="text-foreground animate-spin ml-auto" />}
                 </motion.div>
-                {i < steps.length - 1 && <ArrowRight size={14} className="text-gray-700 shrink-0" />}
+                {i < steps.length - 1 && <ArrowRight size={14} className="text-accent-dim shrink-0" />}
               </div>
             ))}
           </div>
@@ -145,10 +145,10 @@ export default function AIEnginePage() {
 
             <textarea value={nlpInput} onChange={e => setNlpInput(e.target.value)}
               placeholder="e.g. '500 people need water in Sector 7, Delhi — infrastructure damaged by flood, urgent medical supplies required'"
-              className="w-full h-28 px-4 py-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground placeholder:text-gray-600 focus:outline-none focus:border-foreground/15 resize-none font-mono mb-3 transition-all" />
+              className="w-full h-28 px-4 py-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground placeholder:text-accent-dim focus:outline-none focus:border-foreground/15 resize-none font-mono mb-3 transition-all" />
 
             <button onClick={handleNlp} disabled={nlpProcessing || !nlpInput.trim()}
-              className="w-full h-10 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 active:scale-[0.98] disabled:opacity-30 transition-all">
+              className="w-full h-10 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-foreground/80 active:scale-[0.98] disabled:opacity-30 transition-all">
               {nlpProcessing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-4 h-4 border-2 border-background/20 border-t-black rounded-full" /> Extracting with Gemini...</> : <><BrainCircuit size={14} /> Extract & Upload to Heatmap</>}
             </button>
 
@@ -167,7 +167,7 @@ export default function AIEnginePage() {
                     nlpResult[key] !== undefined && (
                       <div key={key} className="flex justify-between border-b border-foreground/[0.04] pb-1.5 gap-4">
                         <span className="text-accent-dim capitalize shrink-0">{key.replace(/_/g, " ")}:</span>
-                        <span className={`text-right ${key === "priority" ? "font-bold text-foreground" : key === "location" ? "font-bold text-emerald-400" : "text-gray-300"}`}>{String(nlpResult[key])}</span>
+                        <span className={`text-right ${key === "priority" ? "font-bold text-foreground" : key === "location" ? "font-bold text-emerald-400" : "text-foreground/70"}`}>{String(nlpResult[key])}</span>
                       </div>
                     )
                   ))}
@@ -187,9 +187,9 @@ export default function AIEnginePage() {
 
             {!visionPreview ? (
               <button onClick={() => fileRef.current?.click()} className="w-full border border-dashed border-foreground/[0.1] rounded-xl p-8 text-center hover:border-foreground/20 transition-colors cursor-pointer group">
-                <Upload size={24} className="mx-auto text-gray-600 mb-3 group-hover:text-accent-muted transition-colors" />
+                <Upload size={24} className="mx-auto text-accent-dim mb-3 group-hover:text-accent-muted transition-colors" />
                 <p className="text-sm text-accent-muted">Upload disaster area image</p>
-                <p className="text-[10px] text-gray-600 mt-1">PNG, JPG, WebP — analyzed by Gemini Vision</p>
+                <p className="text-[10px] text-accent-dim mt-1">PNG, JPG, WebP — analyzed by Gemini Vision</p>
               </button>
             ) : (
               <div className="space-y-3">
@@ -203,15 +203,15 @@ export default function AIEnginePage() {
 
                 {/* Location input for image */}
                 <div className="relative">
-                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-dim" />
                   <input type="text" value={visionLocation} onChange={e => setVisionLocation(e.target.value)}
                     placeholder="Enter location (e.g. Sector 7, Delhi)"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground placeholder:text-gray-600 focus:outline-none focus:border-foreground/15 transition-all" />
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground placeholder:text-accent-dim focus:outline-none focus:border-foreground/15 transition-all" />
                 </div>
 
                 {!visionResult && (
                   <button onClick={handleVisionAnalyze} disabled={visionAnalyzing}
-                    className="w-full h-10 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50 transition-all">
+                    className="w-full h-10 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-foreground/80 active:scale-[0.98] disabled:opacity-50 transition-all">
                     {visionAnalyzing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-4 h-4 border-2 border-background/20 border-t-black rounded-full" /> Analyzing...</> : <><ImageIcon size={14} /> Analyze & Upload</>}
                   </button>
                 )}
@@ -248,7 +248,7 @@ export default function AIEnginePage() {
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-semibold flex items-center gap-2 text-sm"><HeartHandshake size={15} className="text-accent-muted" />Smart Volunteer Matching<Sparkles size={12} className="text-foreground" /></h2>
               <button onClick={handleMatch} disabled={matchProcessing}
-                className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50 transition-all">
+                className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-foreground/80 active:scale-[0.98] disabled:opacity-50 transition-all">
                 {matchProcessing ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }} className="w-3.5 h-3.5 border-2 border-background/20 border-t-black rounded-full" /> Matching...</> : <><Zap size={13} /> Run AI Matching</>}
               </button>
             </div>
@@ -256,10 +256,10 @@ export default function AIEnginePage() {
             {matchError && <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{matchError}</div>}
 
             {!matchResult ? (
-              <div className="text-center py-12 text-gray-600">
+              <div className="text-center py-12 text-accent-dim">
                 <HeartHandshake size={40} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Click &quot;Run AI Matching&quot; to dispatch volunteers using Gemini AI.</p>
-                <p className="text-[11px] text-gray-700 mt-1">{nlpResult ? "Using your NLP extraction as incident data." : "Using default incident data."}</p>
+                <p className="text-[11px] text-accent-dim mt-1">{nlpResult ? "Using your NLP extraction as incident data." : "Using default incident data."}</p>
               </div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -278,7 +278,7 @@ export default function AIEnginePage() {
                         <motion.div initial={{ width: 0 }} animate={{ width: `${v.match_score}%` }} transition={{ duration: 1, delay: i * 0.2 }} className="h-full rounded-full bg-gradient-to-r from-gray-500 to-white" />
                       </div>
                       <p className="text-[10px] text-accent-dim leading-relaxed">{v.reasoning}</p>
-                      <div className="text-[10px] text-gray-600 mt-1.5">ETA: {v.estimated_arrival}</div>
+                      <div className="text-[10px] text-accent-dim mt-1.5">ETA: {v.estimated_arrival}</div>
                     </motion.div>
                   ))}
                 </div>

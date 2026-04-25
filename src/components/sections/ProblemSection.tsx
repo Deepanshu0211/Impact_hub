@@ -6,25 +6,25 @@ import { FileStack, Clock, Users } from "lucide-react";
 export default function ProblemSection() {
   const problems = [
     {
-      icon: <FileStack strokeWidth={1.2} className="w-10 h-10 text-gray-300" />,
+      icon: <FileStack strokeWidth={1.2} className="w-10 h-10 text-foreground/70" />,
       title: "Scattered Reports",
       description: "Paper surveys, WhatsApp messages, and spreadsheets create chaotic, disconnected data silos.",
-      gradient: "from-white/[0.06] to-transparent",
-      glow: "group-hover:shadow-[0_0_40px_rgba(255,255,255,0.06)]",
+      gradient: "from-foreground/[0.06] to-transparent",
+      glow: "group-hover:shadow-[0_0_40px_var(--glow-color)]",
     },
     {
       icon: <Clock strokeWidth={1.2} className="w-10 h-10 text-accent-muted" />,
       title: "Slow Decisions",
       description: "By the time data is compiled and analyzed, the ground reality has already changed.",
-      gradient: "from-white/[0.05] to-transparent",
-      glow: "group-hover:shadow-[0_0_40px_rgba(255,255,255,0.05)]",
+      gradient: "from-foreground/[0.05] to-transparent",
+      glow: "group-hover:shadow-[0_0_40px_var(--glow-color)]",
     },
     {
-      icon: <Users strokeWidth={1.2} className="w-10 h-10 text-gray-300" />,
+      icon: <Users strokeWidth={1.2} className="w-10 h-10 text-foreground/70" />,
       title: "Poor Coordination",
       description: "Volunteers and resources are often sent to the wrong places, duplicating efforts.",
-      gradient: "from-white/[0.06] to-transparent",
-      glow: "group-hover:shadow-[0_0_40px_rgba(255,255,255,0.06)]",
+      gradient: "from-foreground/[0.06] to-transparent",
+      glow: "group-hover:shadow-[0_0_40px_var(--glow-color)]",
     }
   ];
 
