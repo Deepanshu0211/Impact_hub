@@ -235,15 +235,18 @@ export default function IncidentsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setSelectedIncident(null)}
             />
-            <div className="fixed inset-0 overflow-y-auto pointer-events-none">
+            <div 
+              className="fixed inset-0 overflow-y-auto"
+              onClick={() => setSelectedIncident(null)}
+            >
               <div className="flex min-h-full items-center justify-center p-4">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-background border border-foreground/10 rounded-2xl shadow-2xl pointer-events-auto my-8 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-background border border-foreground/10 rounded-2xl shadow-2xl my-8 overflow-hidden"
                 >
               {/* Priority bar */}
               <div className={`h-1 w-full shrink-0 ${
