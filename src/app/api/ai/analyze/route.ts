@@ -67,8 +67,8 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       // Get NGO name for display
       let ngoName = "Unknown NGO";
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('name').eq('id', user.id).single();
-        ngoName = profile?.name || user.user_metadata?.full_name || "Unknown NGO";
+        const { data: profile } = await supabase.from('profiles').select('metadata').eq('id', user.id).single();
+        ngoName = profile?.metadata?.full_name || profile?.metadata?.orgName || user.user_metadata?.full_name || "Unknown NGO";
       }
 
       // Save to Supabase Incidents

@@ -49,3 +49,39 @@ next-env.d.ts
 .full-supabase-schema.sql*
 .full-supabase-schema-no-real-keys.sql*
 
+
+
+# Debug / utility scripts
+check-db.js
+debug-db.js
+fix-colors.js
+scratch.js
+setup-db.js
+test-signup.js
+update-db.js
+
+# Seeds
+seed-volunteers.js
+seed-volunteers.sql
+
+# SQL schema dumps
+full-supabase-schema.sql
+nlp_extractions.sql
+supabase-schema.sql
+
+# Private docs
+CLAUDE.md
+
+# temp scripts
+*-db.js
+scratch.js
+test-*.js
+check-*.js
+seed-*.js
+update-*.js
+
+# sql dumps
+*.sql
+
+# docs
+CLAUDE.md
