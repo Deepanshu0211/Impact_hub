@@ -3,15 +3,66 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import { Settings as SettingsIcon, User, Bell, Shield, Globe, Palette, Database, Key, Save, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
-  const [profile, setProfile] = useState({ name: "Admin User", email: "admin@impacthub.org", role: "System Admin", org: "Impact Hub HQ" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  
+  const [profile, setProfile] = useState({ name: "", email: "", role: "", org: "" });
   const [notifSettings, setNotifSettings] = useState({ criticalAlerts: true, aiUpdates: true, volunteerStatus: true, weeklyReports: true, emailDigest: false, smsAlerts: false });
   const [aiSettings, setAiSettings] = useState({ autoProcess: true, autoDispatch: false, confidenceThreshold: 75, model: "gemini-2.5-flash" });
 
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function fetchSettings() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (prof) {
+          setProfile({
+            name: prof.name || prof.metadata?.orgName || "",
+            email: prof.email || user.email || "",
+            role: prof.role || "",
+            org: prof.metadata?.orgName || prof.metadata?.location || ""
+          });
+        } else {
+          setProfile(prev => ({ ...prev, email: user.email || "" }));
+        }
+      }
+      setLoading(false);
+    }
+    fetchSettings();
+  }, [supabase]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    
+    // We update name and some metadata
+    const { data: currentProf } = await supabase.from('profiles').select('metadata').eq('id', user.id).single();
+    let newMetadata = currentProf?.metadata || {};
+    
+    if (profile.role === 'ngo') {
+      newMetadata.orgName = profile.org || profile.name;
+    } else if (profile.role === 'volunteer') {
+      newMetadata.location = profile.org;
+    }
+
+    await supabase.from('profiles').update({
+      name: profile.name,
+      metadata: newMetadata
+    }).eq('id', user.id);
+
+    setSaving(false);
+    setSaved(true); 
+    setTimeout(() => setSaved(false), 2000); 
+  };
 
   const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
     <button onClick={onChange} className={`w-10 h-5 rounded-full transition-all relative ${checked ? "bg-foreground" : "bg-foreground/[0.1]"}`}>
@@ -20,16 +71,16 @@ export default function SettingsPage() {
   );
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role={profile.role as "ngo" | "volunteer" | "admin" || "admin"}>
       <div className="p-6 md:p-8 max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
             <p className="text-sm text-accent-dim mt-0.5">Manage your account, notifications, and AI preferences.</p>
           </div>
-          <button onClick={handleSave}
-            className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-foreground/80 active:scale-[0.98] transition-all">
-            {saved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>}
+          <button onClick={handleSave} disabled={saving || loading}
+            className="px-5 py-2 rounded-lg bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-foreground/80 active:scale-[0.98] transition-all disabled:opacity-50">
+            {saving ? "Saving..." : saved ? <><CheckCircle2 size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>}
           </button>
         </div>
 
@@ -44,12 +95,12 @@ export default function SettingsPage() {
                 { label: "Full Name", key: "name" as const, type: "text" },
                 { label: "Email", key: "email" as const, type: "email" },
                 { label: "Role", key: "role" as const, type: "text" },
-                { label: "Organization", key: "org" as const, type: "text" },
+                { label: profile.role === 'volunteer' ? "Location" : "Organization", key: "org" as const, type: "text" },
               ].map(field => (
                 <div key={field.key}>
                   <label className="block text-[11px] text-accent-dim uppercase tracking-wider mb-1.5 font-medium">{field.label}</label>
-                  <input type={field.type} value={profile[field.key]} onChange={e => setProfile({ ...profile, [field.key]: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground focus:outline-none focus:border-foreground/15 transition-all" />
+                  <input type={field.type} value={profile[field.key as keyof typeof profile]} onChange={e => setProfile({ ...profile, [field.key]: e.target.value })} disabled={field.key === 'email' || field.key === 'role'}
+                    className="w-full px-4 py-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/[0.06] text-sm text-foreground focus:outline-none focus:border-foreground/15 transition-all disabled:opacity-50" />
                 </div>
               ))}
             </div>

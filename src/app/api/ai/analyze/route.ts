@@ -37,6 +37,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
   "category": "one of: Water, Medical, Food, Shelter, Evacuation, Infrastructure, Other",
   "summary": "one-line summary of the situation",
   "recommended_action": "what action should be taken immediately",
+  "volunteers_needed": "a number representing how many volunteers are needed based on severity (e.g., 5, 10, 50)",
   "confidence_score": a number 0-100 representing extraction confidence
 }`;
 
@@ -81,6 +82,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
           status: "Active",
           affected: parsed.affected_count || "Unknown",
           description: parsed.summary || "",
+          volunteers_needed: parseInt(parsed.volunteers_needed) || 0,
           created_by: user?.id || null
         })
         .select()

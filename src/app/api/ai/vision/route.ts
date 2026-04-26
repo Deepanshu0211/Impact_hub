@@ -49,7 +49,8 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
   "hazards_identified": ["list", "of", "hazards"],
   "immediate_actions": ["list", "of", "recommended", "actions"],
   "estimated_affected_area": "estimated area description",
-  "infrastructure_status": "intact, partial damage, or destroyed"
+  "infrastructure_status": "intact, partial damage, or destroyed",
+  "volunteers_needed": "a number representing how many volunteers are needed based on severity (e.g., 5, 10, 50)"
 }` },
         ];
       } else {
@@ -66,7 +67,8 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
   "hazards_identified": ["list", "of", "hazards"],
   "immediate_actions": ["list", "of", "recommended", "actions"],
   "estimated_affected_area": "estimated area description",
-  "infrastructure_status": "intact, partial damage, or destroyed"
+  "infrastructure_status": "intact, partial damage, or destroyed",
+  "volunteers_needed": "a number representing how many volunteers are needed based on severity (e.g., 5, 10, 50)"
 }` }];
       }
 
@@ -98,6 +100,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
           status: "Active",
           affected: parsed.estimated_affected_area || "Unknown",
           description: parsed.description || "",
+          volunteers_needed: parseInt(parsed.volunteers_needed) || 0,
           created_by: user.id
         })
         .select()

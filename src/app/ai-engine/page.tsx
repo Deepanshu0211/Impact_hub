@@ -7,8 +7,8 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-interface NlpResult { location: string; resource_needed: string; priority: string; affected_count: string; category: string; summary: string; recommended_action: string; confidence_score: number; _source?: string; [key: string]: string | number | undefined; }
-interface VisionResult { severity: string; confidence: number; damage_type: string; description: string; hazards_identified: string[]; immediate_actions: string[]; estimated_affected_area: string; infrastructure_status: string; location?: string; _source?: string; }
+interface NlpResult { location: string; resource_needed: string; priority: string; affected_count: string; category: string; summary: string; recommended_action: string; confidence_score: number; volunteers_needed?: string | number; _source?: string; [key: string]: string | number | undefined; }
+interface VisionResult { severity: string; confidence: number; damage_type: string; description: string; hazards_identified: string[]; immediate_actions: string[]; estimated_affected_area: string; infrastructure_status: string; volunteers_needed?: string | number; location?: string; _source?: string; }
 interface MatchVolunteer { name: string; match_score: number; reasoning: string; estimated_arrival: string; assigned_role: string; }
 interface MatchResult { recommended_volunteers: MatchVolunteer[]; team_composition_notes: string; coverage_gaps: string[]; dispatch_priority_order: string[]; _source?: string; }
 
@@ -163,7 +163,7 @@ export default function AIEnginePage() {
                     <span className="text-emerald-400 font-bold">Uploaded to Heatmap</span>
                     <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold border bg-foreground/10 text-foreground border-foreground/20">⚡ GEMINI</span>
                   </div>
-                  {["location", "resource_needed", "priority", "affected_count", "category", "summary", "recommended_action", "confidence_score"].map(key => (
+                  {["location", "resource_needed", "priority", "affected_count", "category", "summary", "recommended_action", "volunteers_needed", "confidence_score"].map(key => (
                     nlpResult[key] !== undefined && (
                       <div key={key} className="flex justify-between border-b border-foreground/[0.04] pb-1.5 gap-4">
                         <span className="text-accent-dim capitalize shrink-0">{key.replace(/_/g, " ")}:</span>
@@ -227,10 +227,11 @@ export default function AIEnginePage() {
                     <div className="text-[10px] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <CheckCircle2 size={11} className="text-emerald-400" /><span className="text-emerald-400 font-bold">Analyzed & Mapped</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-center mb-3">
+                    <div className="grid grid-cols-4 gap-3 text-center mb-3">
                       <div><div className="text-lg font-bold">{visionResult.severity}</div><div className="text-[10px] text-accent-dim">Severity</div></div>
                       <div><div className="text-lg font-bold">{visionResult.confidence}%</div><div className="text-[10px] text-accent-dim">Confidence</div></div>
                       <div><div className="text-xs font-bold mt-1">{visionResult.damage_type}</div><div className="text-[10px] text-accent-dim">Type</div></div>
+                      <div><div className="text-lg font-bold">{visionResult.volunteers_needed || "N/A"}</div><div className="text-[10px] text-accent-dim">Volunteers</div></div>
                     </div>
                     {visionLocation && <div className="text-xs text-emerald-400 flex items-center gap-1 mb-2"><MapPin size={11} /> {visionLocation} — added to heatmap</div>}
                     <p className="text-xs text-accent-muted leading-relaxed border-t border-foreground/[0.04] pt-3">{visionResult.description}</p>

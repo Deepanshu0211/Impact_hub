@@ -2,11 +2,12 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu, Sparkles, BrainCircuit, XCircle, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { AlertTriangle, FileText, MapPin, Clock, CheckCircle2, Upload, Send, TrendingUp, Activity, Cpu, Sparkles, BrainCircuit, XCircle, Trash2, Users } from "lucide-react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function NGODashboard() {
+function NGODashboardInner() {
   const [reportText, setReportText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -19,6 +20,8 @@ export default function NGODashboard() {
     avgResponse: "0m",
   });
   
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get("q")?.toLowerCase() || "";
   const supabase = createClient();
 
   useEffect(() => {
@@ -43,17 +46,18 @@ export default function NGODashboard() {
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Fetch incidents
-    const { data: incData } = await supabase
-      .from('incidents')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(10);
-      
-    if (incData) setIncidents(incData);
-
-    // Fetch extractions for this user
     if (user) {
+      // Fetch incidents for this user with deployed volunteers
+      const { data: incData } = await supabase
+        .from('incidents')
+        .select('*, profiles(*), missions(id, volunteer_id, status, profiles(*))')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
+      if (incData) setIncidents(incData);
+
+      // Fetch extractions for this user
       const { data: extData } = await supabase
         .from('nlp_extractions')
         .select('*')
@@ -98,6 +102,15 @@ export default function NGODashboard() {
     
     setLoading(false);
   };
+
+  const filteredIncidents = useMemo(() => {
+    if (!searchQuery) return incidents;
+    return incidents.filter(inc => 
+      inc.location?.toLowerCase().includes(searchQuery) ||
+      inc.description?.toLowerCase().includes(searchQuery) ||
+      inc.type?.toLowerCase().includes(searchQuery)
+    );
+  }, [incidents, searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,7 +362,7 @@ export default function NGODashboard() {
                    <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
                    <span>Syncing global network...</span>
                  </div>
-              ) : incidents.length === 0 ? (
+              ) : filteredIncidents.length === 0 ? (
                  <div className="h-64 flex flex-col items-center justify-center text-accent-dim text-sm">
                    <MapPin size={32} className="opacity-20 mb-3" />
                    <span>No active incidents detected.</span>
@@ -357,7 +370,7 @@ export default function NGODashboard() {
                  </div>
               ) : (
                 <div className="space-y-2">
-                  {incidents.map((need, i) => (
+                  {filteredIncidents.map((need, i) => (
                     <motion.div 
                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                       key={need.id} 
@@ -367,6 +380,9 @@ export default function NGODashboard() {
                         <div className="flex items-center gap-2 mb-1">
                           <div className="font-bold text-foreground">{need.location}</div>
                           <span className="text-[10px] text-accent-muted">• {getTimeAgo(need.created_at)}</span>
+                          <span className="text-[10px] bg-foreground/5 text-accent-dim px-1.5 py-0.5 rounded ml-2">
+                            Reported by: {need.profiles?.metadata?.orgName || need.profiles?.name || "Unknown NGO"}
+                          </span>
                         </div>
                         <div className="text-sm text-accent-dim mb-2 line-clamp-1">{need.description}</div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -385,7 +401,37 @@ export default function NGODashboard() {
                               👥 {need.affected}
                             </span>
                           )}
+                          {need.volunteers_needed > 0 && (
+                            <span className={`px-2 py-1 rounded-md text-[10px] font-mono border ${
+                              (need.missions?.length || 0) >= need.volunteers_needed 
+                                ? 'bg-red-500/10 text-red-400 border-red-500/20' 
+                                : 'bg-green-500/10 text-green-400 border-green-500/20'
+                            }`}>
+                              {need.missions?.filter((m: any) => m.status !== 'Completed').length || 0} / {need.volunteers_needed} Volunteers
+                            </span>
+                          )}
                         </div>
+                        {/* Deployed Volunteers */}
+                        {need.missions && need.missions.filter((m: any) => m.status !== 'Completed').length > 0 && (
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-foreground/[0.04]">
+                            <div className="flex -space-x-2">
+                              {need.missions.filter((m: any) => m.status !== 'Completed').slice(0, 4).map((m: any, mi: number) => (
+                                m.profiles?.avatar_url ? (
+                                  <img key={mi} src={m.profiles.avatar_url} alt="" className="w-5 h-5 rounded-full border-2 border-background" />
+                                ) : (
+                                  <div key={mi} className="w-5 h-5 rounded-full bg-indigo-500/30 border-2 border-background flex items-center justify-center">
+                                    <Users size={8} className="text-indigo-400" />
+                                  </div>
+                                )
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-indigo-400 font-medium">
+                              {need.missions.filter((m: any) => m.status !== 'Completed').map((m: any) => 
+                                m.profiles?.metadata?.full_name || m.profiles?.name || 'Volunteer'
+                              ).join(', ')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="sm:text-right flex flex-row sm:flex-col justify-between items-center sm:items-end gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-background border border-foreground/10">
@@ -412,5 +458,17 @@ export default function NGODashboard() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function NGODashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+      </div>
+    }>
+      <NGODashboardInner />
+    </Suspense>
   );
 }

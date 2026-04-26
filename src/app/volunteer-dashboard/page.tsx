@@ -3,7 +3,8 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Clock, CheckCircle2, Star, ArrowRight, Zap, Trophy, Target, Heart, Navigation2, BrainCircuit, X, Sparkles, Shield, Bell } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface AIBriefing {
@@ -17,12 +18,13 @@ interface AIBriefing {
   confidence_score: number;
 }
 
-export default function VolunteerDashboard() {
+function VolunteerDashboardInner() {
   const [status, setStatus] = useState<"available" | "busy" | "offline">("available");
   const [acceptedMission, setAcceptedMission] = useState<string | null>(null);
   
   const [availableMissions, setAvailableMissions] = useState<any[]>([]);
   const [activeAssignments, setActiveAssignments] = useState<any[]>([]);
+  const [myNgoIds, setMyNgoIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     missionsComplete: "0",
@@ -38,6 +40,8 @@ export default function VolunteerDashboard() {
   const [briefingLoading, setBriefingLoading] = useState(false);
   
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get("q")?.toLowerCase() || "";
   const [user, setUser] = useState<any>(null);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const userIdRef = useRef<string | null>(null);
@@ -77,11 +81,21 @@ export default function VolunteerDashboard() {
     // Fetch Active Incidents not yet resolved
     const { data: incidents } = await supabase
       .from('incidents')
-      .select('*')
+      .select('*, profiles(*), missions(id, volunteer_id, profiles(*))')
       .neq('status', 'Resolved')
       .order('created_at', { ascending: false });
       
     if (incidents) setAvailableMissions(incidents);
+
+    // Fetch my NGO memberships
+    const { data: memberships } = await supabase
+      .from('ngo_members')
+      .select('ngo_user_id')
+      .eq('member_user_id', userId);
+      
+    if (memberships) {
+      setMyNgoIds(memberships.map((m: any) => m.ngo_user_id));
+    }
 
     // Fetch AI suggestions (notifications)
     fetchAISuggestions(userId);
@@ -122,6 +136,25 @@ export default function VolunteerDashboard() {
     
     setLoading(false);
   };
+
+  const filteredMissions = useMemo(() => {
+    let filtered = availableMissions;
+    if (searchQuery) {
+      filtered = availableMissions.filter(mission => 
+        mission.location?.toLowerCase().includes(searchQuery) ||
+        mission.description?.toLowerCase().includes(searchQuery) ||
+        mission.type?.toLowerCase().includes(searchQuery)
+      );
+    }
+    
+    // Sort so incidents from my affiliated NGOs are at the top
+    return [...filtered].sort((a, b) => {
+      const aIsMyNgo = myNgoIds.includes(a.created_by) ? 1 : 0;
+      const bIsMyNgo = myNgoIds.includes(b.created_by) ? 1 : 0;
+      if (aIsMyNgo !== bIsMyNgo) return bIsMyNgo - aIsMyNgo;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [availableMissions, searchQuery, myNgoIds]);
 
   const fetchAISuggestions = async (userId: string) => {
     const { data: notifs } = await supabase
@@ -433,23 +466,34 @@ export default function VolunteerDashboard() {
                   <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
                   <span>Scanning local grid...</span>
                 </div>
-              ) : availableMissions.length === 0 ? (
+              ) : filteredMissions.length === 0 ? (
                  <div className="p-10 flex flex-col items-center justify-center text-sm text-accent-dim">
                    <Zap size={32} className="opacity-20 mb-3" />
-                   No active incidents in your sector.
+                   No active incidents match your criteria.
                  </div>
               ) : (
                 <div className="space-y-2">
-                  {availableMissions.map((mission, i) => (
+                  {filteredMissions.map((mission, i) => {
+                    const volunteersNeeded = mission.volunteers_needed || 0;
+                    const volunteersApplied = mission.missions?.length || 0;
+                    const isFull = volunteersNeeded > 0 && volunteersApplied >= volunteersNeeded;
+                    const isMyNgo = myNgoIds.includes(mission.created_by);
+
+                    return (
                     <motion.div 
                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                       key={mission.id} 
-                      className="group p-5 rounded-xl hover:bg-foreground/[0.04] border border-transparent hover:border-foreground/[0.06] transition-all"
+                      className={`group p-5 rounded-xl border transition-all ${isMyNgo ? 'bg-indigo-500/[0.04] border-indigo-500/20 hover:border-indigo-500/40' : 'hover:bg-foreground/[0.04] border-transparent hover:border-foreground/[0.06]'}`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-foreground text-lg">{mission.location}</span>
+                            {isMyNgo && (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-1">
+                                <Shield size={10} /> YOUR NGO
+                              </span>
+                            )}
                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border ${
                               mission.priority === "CRITICAL" ? "bg-foreground/10 text-foreground border-foreground/20 shadow-[0_0_10px_var(--glass-border)]" :
                               mission.priority === "HIGH" ? "bg-foreground/[0.06] text-foreground/70 border-foreground/10" :
@@ -459,6 +503,16 @@ export default function VolunteerDashboard() {
                             </span>
                           </div>
                           <div className="text-sm text-accent-dim mb-3 line-clamp-1">{mission.description || mission.type}</div>
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <span className="text-[10px] bg-foreground/5 text-accent-dim px-1.5 py-0.5 rounded">
+                              NGO: {mission.profiles?.metadata?.orgName || mission.profiles?.name || "Unknown"}
+                            </span>
+                            {volunteersNeeded > 0 && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isFull ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                                {volunteersApplied} / {volunteersNeeded} Volunteers
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-4 text-[11px] font-medium text-accent-muted bg-foreground/[0.02] inline-flex px-3 py-1.5 rounded-lg border border-foreground/[0.04]">
                             <span className="flex items-center gap-1.5"><Clock size={12} /> {getTimeAgo(mission.created_at)}</span>
                             <span className="w-px h-3 bg-foreground/10" />
@@ -468,11 +522,13 @@ export default function VolunteerDashboard() {
 
                         <button
                           onClick={() => handleDeployClick(mission.id)}
-                          disabled={acceptedMission === mission.id || mission.status === 'In Transit'}
+                          disabled={acceptedMission === mission.id || mission.status === 'In Transit' || (isFull && acceptedMission !== mission.id)}
                           className={`shrink-0 h-11 px-6 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-[0.95] ${
                             acceptedMission === mission.id
                               ? "bg-foreground/10 text-foreground border border-foreground/20"
                               : mission.status === 'In Transit' 
+                              ? "bg-foreground/[0.05] text-accent-dim cursor-not-allowed border border-foreground/[0.05]"
+                              : isFull
                               ? "bg-foreground/[0.05] text-accent-dim cursor-not-allowed border border-foreground/[0.05]"
                               : "bg-foreground text-background hover:bg-foreground/80 hover:shadow-[0_0_15px_var(--shimmer-b)] group-hover:scale-105"
                           }`}
@@ -481,13 +537,15 @@ export default function VolunteerDashboard() {
                             <><CheckCircle2 size={16} /> Deploying</>
                           ) : mission.status === 'In Transit' ? (
                             <>Dispatched</>
+                          ) : isFull ? (
+                            <>Capacity Reached</>
                           ) : (
                             <><BrainCircuit size={14} /> Deploy <ArrowRight size={16} /></>
                           )}
                         </button>
                       </div>
                     </motion.div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
@@ -615,5 +673,17 @@ export default function VolunteerDashboard() {
         )}
       </AnimatePresence>
     </DashboardLayout>
+  );
+}
+
+export default function VolunteerDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+      </div>
+    }>
+      <VolunteerDashboardInner />
+    </Suspense>
   );
 }

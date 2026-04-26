@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,7 +9,7 @@ import {
   ChevronLeft, Sparkles, FileSearch
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -20,7 +20,7 @@ const ngoLinks = [
   { href: "/ngo-dashboard", label: "Dashboard", icon: Activity },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
   { href: "/ai-engine", label: "Data Center", icon: BrainCircuit },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/ngo-team", label: "Team", icon: Users },
 ];
 
 const volunteerLinks = [
@@ -38,13 +38,27 @@ const adminLinks = [
   { href: "/incidents", label: "Incidents", icon: FileSearch },
 ];
 
-export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
+function DashboardLayoutInner({ children, role }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const [actualRole, setActualRole] = useState<"ngo" | "volunteer" | "admin">(role);
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    const params = new URLSearchParams(searchParams?.toString() || "");
+    if (query) {
+      params.set("q", query);
+    } else {
+      params.delete("q");
+    }
+    router.push(`?${params.toString()}`);
+  };
 
   useEffect(() => {
     async function loadUser() {
@@ -84,7 +98,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-dim" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search incidents, locations..."
+              value={searchQuery}
+              onChange={handleSearch}
               className="pl-9 pr-4 py-1.5 bg-foreground/[0.03] border border-foreground/[0.06] rounded-lg text-sm focus:outline-none focus:border-foreground/20 text-foreground w-56 transition-all focus:w-72 placeholder:text-accent-dim"
             />
           </div>
@@ -163,5 +179,17 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout(props: DashboardLayoutProps) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+      </div>
+    }>
+      <DashboardLayoutInner {...props} />
+    </Suspense>
   );
 }

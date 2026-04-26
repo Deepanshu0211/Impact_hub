@@ -6,8 +6,6 @@ import { MapPin, AlertTriangle, CheckCircle2, Clock, Users, Flame, Layers } from
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-import dynamic from "next/dynamic";
-
 const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
 
@@ -62,7 +60,9 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+    let isMounted = true;
     import("leaflet").then((leaflet) => {
+      if (!isMounted) return;
       const Ld = leaflet.default;
       setL(Ld);
       Ld.Icon.Default.mergeOptions({
@@ -71,7 +71,13 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
       });
       import("leaflet/dist/leaflet.css");
-      const map = Ld.map(mapContainerRef.current!, {
+      
+      const container = mapContainerRef.current!;
+      if ((container as any)._leaflet_id) {
+        return;
+      }
+
+      const map = Ld.map(container, {
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
         zoomControl: true,
@@ -85,6 +91,15 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
       mapRef.current = map;
       setMapReady(true);
     });
+    
+    return () => {
+      isMounted = false;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        setMapReady(false);
+      }
+    };
   }, []);
 
   // Geocode all incidents whenever they change
@@ -95,6 +110,7 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
       for (const inc of incidents) {
         if (!inc.lat && !inc.lng) {
           await geocodeLocation(inc.location);
+          await new Promise(r => setTimeout(r, 1000)); // Throttling
         }
       }
       if (!cancelled) setGeocodeDone(d => d + 1);
@@ -134,6 +150,18 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
       });
       marker._isIncidentMarker = true;
 
+      // Build volunteer HTML for popup
+      const deployedVols = inc.deployed_volunteers || [];
+      const volHtml = deployedVols.length > 0 
+        ? `<div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
+            <div style="font-size: 10px; color: #818cf8; margin-bottom: 4px;">🛡️ Deployed Volunteers (${deployedVols.length}):</div>
+            ${deployedVols.map((v: any) => `<div style="font-size: 10px; color: #a1a1aa; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+              ${v.avatar_url ? `<img src="${v.avatar_url}" style="width:14px; height:14px; border-radius:50%; border: 1px solid rgba(255,255,255,0.2);" />` : '<div style="width:14px; height:14px; border-radius:50%; background: rgba(255,255,255,0.15);"></div>'}
+              ${v.name || 'Volunteer'}
+            </div>`).join('')}
+           </div>` 
+        : '';
+
       const popupContent = `
         <div style="font-family: 'Helvetica Neue', sans-serif; color: #fff; min-width: 200px;">
           <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${inc.location}</div>
@@ -146,6 +174,7 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
             </span>
           </div>
           ${inc.description ? `<div style="font-size: 11px; color: #a1a1aa; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">${inc.description}</div>` : ''}
+          ${volHtml}
         </div>
       `;
 
@@ -184,7 +213,7 @@ export default function LiveMapPage() {
   const [filter, setFilter] = useState<string>("all");
   const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
   const [incidents, setIncidents] = useState<any[]>([]);
-  const [showHeat, setShowHeat] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
@@ -194,36 +223,46 @@ export default function LiveMapPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
         fetchIncidents();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, () => {
+        fetchIncidents();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [supabase]);
 
   const fetchIncidents = async () => {
-    // Fetch incidents
+    // Fetch incidents with missions and volunteer profiles
     const { data, error } = await supabase
       .from('incidents')
-      .select('*')
+      .select('*, missions(id, volunteer_id, status, profiles(*))')
       .order('created_at', { ascending: false });
 
     if (error) { console.error('Failed to fetch incidents:', error); return; }
     if (!data) return;
 
-    // Fetch NGO names separately to avoid join issues
+    // Fetch NGO names separately
     const creatorIds = [...new Set(data.filter(d => d.created_by).map(d => d.created_by))];
     let ngoMap: Record<string, string> = {};
     if (creatorIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, name')
+        .select('id, name, metadata')
         .in('id', creatorIds);
       if (profiles) {
-        profiles.forEach((p: any) => { ngoMap[p.id] = p.name || 'Unknown NGO'; });
+        profiles.forEach((p: any) => { ngoMap[p.id] = p.metadata?.orgName || p.name || 'Unknown NGO'; });
       }
     }
 
     const mapped = data.map((inc: any) => ({
       ...inc,
-      ngo_name: inc.created_by ? (ngoMap[inc.created_by] || null) : null
+      ngo_name: inc.created_by ? (ngoMap[inc.created_by] || null) : null,
+      deployed_volunteers: (inc.missions || [])
+        .filter((m: any) => m.status !== 'Completed')
+        .map((m: any) => ({
+          id: m.volunteer_id,
+          name: m.profiles?.metadata?.full_name || m.profiles?.name || m.profiles?.metadata?.orgName || 'Volunteer',
+          avatar_url: m.profiles?.avatar_url || null,
+        }))
     }));
     setIncidents(mapped);
   };
@@ -243,7 +282,8 @@ export default function LiveMapPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="flex h-[calc(100vh-56px)]">
+      {/* Use fixed height that accounts for header (56px) and bottom nav (~80px) */}
+      <div className="flex" style={{ height: 'calc(100vh - 56px - 80px)' }}>
         {/* Map Area */}
         <div className="flex-1 relative bg-background overflow-hidden font-helvetica">
           <MapInner
@@ -267,8 +307,16 @@ export default function LiveMapPage() {
             ))}
           </div>
 
-          {/* Heatmap Legend */}
-          <div className="absolute bottom-6 left-4 z-[1000] flex gap-3">
+          {/* Toggle sidebar button (mobile) */}
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="absolute top-4 right-4 z-[1000] sm:hidden bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-xs font-bold"
+          >
+            {showSidebar ? "Hide" : "Feed"}
+          </button>
+
+          {/* Heatmap Legend — positioned above bottom nav */}
+          <div className="absolute bottom-4 left-4 z-[1000] flex gap-3">
             <div className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg p-3 text-xs space-y-1.5">
               <div className="text-accent-dim font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <Flame size={10} /> Heatmap Legend
@@ -281,7 +329,7 @@ export default function LiveMapPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 border-l border-foreground/[0.06] flex flex-col bg-background/50 backdrop-blur-md">
+        <div className={`${showSidebar ? 'w-80' : 'w-0 overflow-hidden'} transition-all duration-300 border-l border-foreground/[0.06] flex flex-col bg-background/50 backdrop-blur-md`}>
           <div className="p-4 border-b border-foreground/[0.06]">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold tracking-tight text-sm">Incident Feed</h2>
@@ -320,6 +368,25 @@ export default function LiveMapPage() {
                   </div>
                   <div className="text-xs text-accent-dim mb-1">{inc.type}</div>
                   {inc.ngo_name && <div className="text-[10px] text-indigo-400 mb-1">📋 {inc.ngo_name}</div>}
+                  
+                  {/* Deployed volunteers */}
+                  {inc.deployed_volunteers && inc.deployed_volunteers.length > 0 && (
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <div className="flex -space-x-1.5">
+                        {inc.deployed_volunteers.slice(0, 3).map((v: any, vi: number) => (
+                          v.avatar_url ? (
+                            <img key={vi} src={v.avatar_url} alt="" className="w-4 h-4 rounded-full border border-background" />
+                          ) : (
+                            <div key={vi} className="w-4 h-4 rounded-full bg-indigo-500/30 border border-background" />
+                          )
+                        ))}
+                      </div>
+                      <span className="text-[9px] text-indigo-400 font-medium">
+                        {inc.deployed_volunteers.length} deployed
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 text-[10px] text-accent-dim">
                     {inc.status === "Processing" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Processing</>}
                     {inc.status === "Active" && <><div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />Active</>}
