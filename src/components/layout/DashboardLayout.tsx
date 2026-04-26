@@ -21,6 +21,7 @@ const ngoLinks = [
   { href: "/live-map", label: "Live Map", icon: MapIcon },
   { href: "/ai-engine", label: "Data Center", icon: BrainCircuit },
   { href: "/ngo-team", label: "Team", icon: Users },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 const volunteerLinks = [
@@ -28,6 +29,7 @@ const volunteerLinks = [
   { href: "/incidents", label: "Incidents", icon: FileSearch },
   { href: "/live-map", label: "Live Map", icon: MapIcon },
   { href: "/ai-briefing", label: "AI Briefing", icon: Sparkles },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 const adminLinks = [

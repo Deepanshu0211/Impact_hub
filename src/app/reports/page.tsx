@@ -26,6 +26,7 @@ interface ResponseTime {
 interface TopVolunteer {
   rank: number;
   name: string;
+  avatar_url?: string;
   missions: number;
   hours: number;
   score: number;
@@ -194,12 +195,12 @@ export default function ReportsPage() {
       setResponseTimes(responseArr);
 
       // === TOP VOLUNTEERS ===
-      const volunteerMissionCount = new Map<string, { name: string; missions: number; peopleHelped: number }>();
+      const volunteerMissionCount = new Map<string, { name: string; avatar_url?: string; missions: number; peopleHelped: number }>();
 
       missions.forEach((m: any) => {
         const vid = m.volunteer_id;
         if (!vid) return;
-        const entry = volunteerMissionCount.get(vid) || { name: "", missions: 0, peopleHelped: 0 };
+        const entry = volunteerMissionCount.get(vid) || { name: "", avatar_url: "", missions: 0, peopleHelped: 0 };
         entry.missions++;
         const affected = parseInt(m.incident?.affected || "0");
         if (!isNaN(affected)) entry.peopleHelped += affected;
@@ -210,7 +211,8 @@ export default function ReportsPage() {
       volunteers.forEach((v: any) => {
         const entry = volunteerMissionCount.get(v.id);
         if (entry) {
-          entry.name = v.name || v.metadata?.name || v.email?.split('@')[0] || "Volunteer";
+          entry.name = v.full_name || v.metadata?.full_name || v.name || v.metadata?.name || v.email?.split('@')[0] || "Volunteer";
+          entry.avatar_url = v.avatar_url;
         }
       });
 
@@ -222,6 +224,7 @@ export default function ReportsPage() {
           topArr.push({
             rank: rank++,
             name: val.name,
+            avatar_url: val.avatar_url,
             missions: val.missions,
             hours: val.missions * 3, // estimated 3 hours per mission
             score: Math.min(100, 50 + (val.missions * 5)),
@@ -396,7 +399,11 @@ export default function ReportsPage() {
                       <td className="px-5 py-3.5 font-mono text-accent-dim">{v.rank}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-500 to-gray-700 border border-foreground/10 flex items-center justify-center text-[10px] font-bold">{v.name.charAt(0)}</div>
+                          {v.avatar_url ? (
+                            <img src={v.avatar_url} alt="" className="w-7 h-7 rounded-full border border-foreground/10" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-500 to-gray-700 border border-foreground/10 flex items-center justify-center text-[10px] font-bold">{v.name.charAt(0)}</div>
+                          )}
                           <span className="font-medium">{v.name}</span>
                         </div>
                       </td>
