@@ -59,29 +59,20 @@ scratch.js
 setup-db.js
 test-signup.js
 update-db.js
-
-# Seeds
-seed-volunteers.js
-seed-volunteers.sql
-
-# SQL schema dumps
-full-supabase-schema.sql
-nlp_extractions.sql
-supabase-schema.sql
-
-# Private docs
-CLAUDE.md
-
-# temp scripts
 *-db.js
-scratch.js
 test-*.js
 check-*.js
 seed-*.js
 update-*.js
 
-# sql dumps
+# SQL schema and migration dumps
 *.sql
+*migration*.sql
+supabase-migration-*.sql
+full-supabase-schema.sql
+nlp_extractions.sql
+supabase-schema.sql
+seed-volunteers.sql
 
-# docs
+# Private docs
 CLAUDE.md
