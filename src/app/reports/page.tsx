@@ -260,7 +260,7 @@ export default function ReportsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold mb-1 tracking-tight">Impact Reports</h1>
-            <p className="text-sm text-accent-dim">Analytics and performance metrics — powered by live Firebase data.</p>
+            <p className="text-sm text-accent-dim">Analytics and performance metrics — powered by live Supabase data.</p>
           </div>
           <div className="flex gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] text-[10px] text-foreground font-bold">
@@ -273,7 +273,7 @@ export default function ReportsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Incidents", value: summaryStats.totalIncidents, icon: BarChart3, trend: "From Firebase" },
+            { label: "Total Incidents", value: summaryStats.totalIncidents, icon: BarChart3, trend: "From Supabase" },
             { label: "Resolution Rate", value: summaryStats.resolutionRate, icon: TrendingDown, trend: "Resolved / Total" },
             { label: "Avg Response", value: summaryStats.avgResponse, icon: Clock, trend: "Time to first deploy" },
             { label: "Registered Volunteers", value: summaryStats.activeVolunteers, icon: Users, trend: "Total signed up" },
@@ -380,7 +380,7 @@ export default function ReportsPage() {
             className="xl:col-span-2 rounded-xl bg-foreground/[0.02] border border-foreground/[0.06] overflow-hidden">
             <div className="p-5 border-b border-foreground/[0.04] flex justify-between items-center">
               <h2 className="font-semibold tracking-tight flex items-center gap-2 text-sm"><Trophy size={15} className="text-accent-muted" />Top Volunteers</h2>
-              <span className="text-[9px] bg-foreground/10 px-2 py-0.5 rounded font-mono tracking-widest">FROM FIREBASE</span>
+              <span className="text-[9px] bg-foreground/10 px-2 py-0.5 rounded font-mono tracking-widest">FROM SUPABASE</span>
             </div>
             {topVolunteers.length > 0 ? (
               <table className="w-full text-sm">
