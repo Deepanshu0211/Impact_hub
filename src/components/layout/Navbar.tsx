@@ -16,10 +16,11 @@ interface NavLink {
 
 const defaultLinks: NavLink[] = [
   { href: "#features", label: "Features" },
-  { href: "#technology", label: "Technology" },
+  { href: "#technology", label: "Tech" },
+  { href: "#mobile-app", label: "Mobile" },
+  { href: "#sms-pipeline", label: "SMS Node" },
   { href: "#impact", label: "Impact" },
   { href: "#roadmap", label: "Roadmap" },
-  { href: "/emergency", label: "Emergency" },
 ];
 
 const ngoLinks: NavLink[] = [
@@ -88,7 +89,7 @@ export default function Navbar() {
           }
         });
       },
-      { threshold: 0.3 }
+      { rootMargin: "-30% 0px -50% 0px" }
     );
 
     defaultLinks.forEach((link) => {

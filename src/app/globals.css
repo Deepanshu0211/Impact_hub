@@ -277,3 +277,5 @@ body {
   background: linear-gradient(90deg, transparent, var(--shimmer-b), var(--shimmer-b), transparent);
   height: 1px;
 }
+
+html { scroll-behavior: smooth; }

@@ -3,6 +3,7 @@ import HeroSection from "@/components/sections/HeroSection";
 import ProblemSection from "@/components/sections/ProblemSection";
 import SolutionSection from "@/components/sections/SolutionSection";
 import MobileAppSection from "@/components/sections/MobileAppSection";
+import SMSFallbackSection from "@/components/sections/SMSFallbackSection";
 import LiveDemoSection from "@/components/sections/LiveDemoSection";
 import ImpactSection from "@/components/sections/ImpactSection";
 import RoadmapSection from "@/components/sections/RoadmapSection";
@@ -25,6 +26,7 @@ export default function Home() {
         <ProblemSection />
         <SolutionSection />
         <MobileAppSection />
+        <SMSFallbackSection />
         <LiveDemoSection />
         <ImpactSection />
         <RoadmapSection />
