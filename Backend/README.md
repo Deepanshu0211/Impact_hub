@@ -1,49 +1,45 @@
-# Impact Hub - SMS Fallback Pipeline
+<div align="center">
+  <img src="https://impact-hub-alpha.vercel.app/logo1.png" alt="Impact Hub Logo" width="120" />
 
-This document explains the step-by-step process of how our SMS Fallback feature works. This feature allows users without internet access to send disaster reports via SMS, which are then automatically processed by our AI (Gemma) and added to the Live Heatmap.
+  # Impact Hub ⚡ UI/UX Architecture
+  
+  **Unify Scattered Data. Coordinate Volunteers. Save Lives.** <br>
+  *A Zero-Latency Tactical Command Center built for the chaos of crisis response.*
 
-## How the Pipeline Works
+  [![Live Demo](https://img.shields.io/badge/Live_Deployment-Vercel-black?style=for-the-badge&logo=vercel)](https://impact-hub-alpha.vercel.app/)
+  [![UI/UX](https://img.shields.io/badge/Design_System-Radix/Tailwind-blue?style=for-the-badge&logo=react)](https://impact-hub-alpha.vercel.app/)
+</div>
 
-1. **User Sends an SMS:** A person in a disaster zone sends an SMS (e.g., "Heavy flooding in sector 4, 3 families stranded") from their phone.
-2. **SMS Gateway:** We use an Android app (like "SMS Forwarder") or a service like Twilio to catch this incoming SMS and forward it over the internet to our PC.
-3. **Ngrok Tunnel:** Because our Python server is running locally on the PC, the SMS gateway uses an Ngrok URL (e.g., `https://random.ngrok-free.app`) to reach our PC securely over the internet.
-4. **FastAPI Webhook:** Our Python server (`main.py`) running on the PC receives the SMS payload on the `/api/sms` endpoint.
-5. **Gemma AI Processing:** The Python server takes the text from the SMS and sends it to our local AI model (Gemma, running via Ollama) to extract structured details like location, priority, and resources needed.
-6. **Database Update:** Once Gemma returns the structured JSON data, the Python server saves it directly to our Supabase database (into the `incidents` table).
-7. **Live Heatmap:** The Next.js frontend is subscribed to the database. As soon as the new incident is saved, the Live Heatmap updates automatically!
+<br>
 
-## Setup Instructions (Step-by-Step)
+## 👁️ The Vision: Processing Chaos into Clarity
+During a crisis, paper surveys, WhatsApp texts, and field reports create deadly data silos. Impact Hub's UI is designed with a singular, ruthless focus: **Cognitive ease under high-stress conditions.** We stripped away the noise to build an interface that feels less like a dashboard and more like an autonomous nervous system for disaster response.
 
-### Step 1: Install Python Dependencies
-Open your terminal in the `Backend` folder and install the required packages:
-```bash
-pip install fastapi uvicorn supabase requests python-dotenv pydantic
-```
+## 🎨 Core Design Principles
+* **Dark-Mode First (Tactical Contrast):** Designed for low-light field environments and high-contrast visibility. Critical alerts (heatmaps, priority zones) pulse to immediately draw the eye without overwhelming the dispatcher.
+* **0ms Latency Illusion:** The interface leverages optimistic UI updates and fluid micro-interactions to make complex Vertex AI data parsing feel instantaneous.
+* **Progressive Disclosure:** Users only see what they need, exactly when they need it. From the raw text intake to actionable intelligence, the cognitive load is managed through clean, card-based data structures.
 
-### Step 2: Configure Environment Variables
-Create a `.env` file in the `Backend` folder and add your Supabase credentials:
-```env
-SUPABASE_URL=your_supabase_url_here
-SUPABASE_KEY=your_supabase_service_role_key_here
-```
+## 🗺️ The Interface Ecosystem
 
-### Step 3: Start the Python Server
-Run the FastAPI server:
-```bash
-uvicorn main:app --reload
-```
-The server will start at `http://127.0.0.1:8000`.
+### 1. The Command Dashboard
+The web interface serves as the high-altitude view for coordinators.
+* **Live Heatmap Intelligence:** Geospatial rendering of crisis zones powered by Maps API. Critical zones are visually weighted by severity, allowing dispatchers to make split-second triage decisions.
+* **Automated Data Structuring:** Messy, unstructured field text is transformed into clean, scannable UI cards detailing *Location, Threat Level, and Resource Deficits*.
 
-### Step 4: Expose the Server using Ngrok
-In a new terminal window, run Ngrok to expose port 8000:
-```bash
-ngrok http 8000
-```
-Copy the `Forwarding` URL (e.g., `https://abc-123.ngrok-free.app`).
+### 2. The Field Mobile Experience (Flutter)
+Engineered for the ground reality of India's fragmented device ecosystem.
+* **Native Fluidity:** Built with Flutter to guarantee smooth 60fps performance on low-end Android devices in rural or low-connectivity zones.
+* **Glanceable Matchmaking:** Volunteers receive beautifully formatted, localized mission briefings with clear CTA (Call to Action) buttons for immediate deployment.
 
-### Step 5: Configure the SMS Gateway
-Set up your SMS forwarding app (or Twilio webhook) to send incoming messages via POST request to:
-`https://abc-123.ngrok-free.app/api/sms`
+## ⚙️ Visual Tech Stack
+- **Frontend Framework:** Next.js / React
+- **Styling:** Tailwind CSS (Precision utility-class architecture)
+- **Mobile Paradigm:** Flutter Native Cross-Platform
+- **Geospatial UI:** Maps API integration for dynamic heatmaps
+- **Motion & Micro-interactions:** CSS keyframing for live-sync indicators and terminal typing effects.
 
 ---
-Once this setup is complete, any SMS sent to the designated phone number will automatically flow through the AI and appear on the Impact Hub Live Map!
+<div align="center">
+  <i>Designed and engineered to ensure that when every second matters, the interface never gets in the way.</i>
+</div>
