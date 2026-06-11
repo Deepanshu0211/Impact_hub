@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity, AlertTriangle, Users, Map as MapIcon, Settings,
   Search, Bell, Menu, X, BrainCircuit, BarChart3, LogOut,
-  ChevronLeft, Sparkles, FileSearch
+  ChevronLeft, Sparkles, FileSearch, ShieldAlert
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,6 +48,7 @@ function DashboardLayoutInner({ children, role }: DashboardLayoutProps) {
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const [actualRole, setActualRole] = useState<"ngo" | "volunteer" | "admin">(role);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,9 +68,12 @@ function DashboardLayoutInner({ children, role }: DashboardLayoutProps) {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const { data: profile } = await supabase.from('profiles').select('role, metadata').eq('id', user.id).single();
         if (profile?.role) {
           setActualRole(profile.role as "ngo" | "volunteer" | "admin");
+        }
+        if (user.email === "dy3239073@gmail.com" || profile?.metadata?.is_admin === true) {
+          setIsAdmin(true);
         }
       }
     }
@@ -81,7 +85,10 @@ function DashboardLayoutInner({ children, role }: DashboardLayoutProps) {
     router.push("/login");
   };
 
-  const links = actualRole === "ngo" ? ngoLinks : actualRole === "volunteer" ? volunteerLinks : adminLinks;
+  const baseLinks = actualRole === "ngo" ? ngoLinks : actualRole === "volunteer" ? volunteerLinks : adminLinks;
+  const links = isAdmin 
+    ? [...baseLinks, { href: "/admin", label: "Admin", icon: ShieldAlert }]
+    : baseLinks;
   const roleLabel = actualRole === "ngo" ? "NGO" : actualRole === "volunteer" ? "Volunteer" : "Admin";
 
   return (

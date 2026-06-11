@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -5,6 +6,8 @@ import { motion } from "framer-motion";
 import { MapPin, AlertTriangle, CheckCircle2, Clock, Users, Flame, Layers } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { APIProvider, Map, Marker, InfoWindow, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { MAP_STYLES } from "./map-styles";
 
 const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
 const DEFAULT_ZOOM = 5;
@@ -12,24 +15,10 @@ const DEFAULT_ZOOM = 5;
 // Geocode cache
 const geocodeCache: Record<string, [number, number]> = {};
 
-async function geocodeLocation(location: string): Promise<[number, number] | null> {
-  const key = location.toLowerCase().trim();
-  if (geocodeCache[key]) return geocodeCache[key];
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location + ", India")}&format=json&limit=1`,
-      { headers: { 'User-Agent': 'ImpactHub/1.0' } }
-    );
-    const data = await res.json();
-    if (data && data.length > 0) {
-      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-      geocodeCache[key] = coords;
-      return coords;
-    }
-  } catch (e) {
-    console.warn('Geocoding failed for:', location);
-  }
-  return null;
+// Fallback generator for completely unknown locations
+function getFallbackCoords(index: number): [number, number] {
+  const idx = index || 0;
+  return [22.0 + ((idx * 7 + 3) % 20) * 0.3, 78.0 + ((idx * 11 + 5) % 20) * 0.3];
 }
 
 function getCoords(location: string, lat?: number, lng?: number, index?: number): [number, number] {
@@ -37,12 +26,113 @@ function getCoords(location: string, lat?: number, lng?: number, index?: number)
   const key = (location || "").toLowerCase().trim();
   if (geocodeCache[key]) {
     const c = geocodeCache[key];
-    const j = (index || 0) * 0.003;
+    const j = (index || 0) * 0.003; // Slight jitter so markers don't overlap exactly
     return [c[0] + j, c[1] + j];
   }
-  // Fallback
-  const idx = index || 0;
-  return [22.0 + ((idx * 7 + 3) % 20) * 0.3, 78.0 + ((idx * 11 + 5) % 20) * 0.3];
+  return getFallbackCoords(index || 0);
+}
+
+function MapCircle({ center, radius, fillColor, fillOpacity }: any) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const c = new google.maps.Circle({
+      center,
+      radius,
+      fillColor,
+      fillOpacity,
+      strokeWeight: 0,
+      map,
+      clickable: false,
+    });
+    return () => {
+      c.setMap(null);
+    };
+  }, [map, center, radius, fillColor, fillOpacity]);
+  return null;
+}
+
+function IncidentMarker({ inc, i, selectedIncident, setSelectedIncident }: any) {
+  const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
+  const color = inc.priority === "CRITICAL" ? "#b91c1c" : inc.priority === "HIGH" ? "#b45309" : "#15803d";
+  const fillColor = inc.priority === "CRITICAL" ? "#dc2626" : inc.priority === "HIGH" ? "#d97706" : "#22c55e";
+  const radius = inc.priority === "CRITICAL" ? 10 : inc.priority === "HIGH" ? 7 : 5;
+  
+  const [hovered, setHovered] = useState(false);
+  const isSelected = selectedIncident === inc.id;
+  const showPopup = hovered || isSelected;
+
+  const deployedVols = inc.deployed_volunteers || [];
+  
+  // Custom SVG icon for Marker
+  const svgIcon = {
+    path: typeof google !== 'undefined' ? google.maps.SymbolPath.CIRCLE : 0,
+    fillColor,
+    fillOpacity: inc.priority === "CRITICAL" ? 0.85 : 0.65,
+    scale: radius,
+    strokeColor: color,
+    strokeWeight: 2,
+  };
+
+  return (
+    <>
+      <Marker
+        position={{ lat, lng }}
+        icon={svgIcon}
+        onClick={() => setSelectedIncident(inc.id)}
+        onMouseOver={() => setHovered(true)}
+        onMouseOut={() => setHovered(false)}
+        zIndex={isSelected ? 1000 : 1}
+      />
+
+      {showPopup && (
+        <InfoWindow
+          position={{ lat, lng }}
+          onCloseClick={() => { setHovered(false); setSelectedIncident(null); }}
+          headerDisabled
+        >
+          <div style={{ fontFamily: "'Helvetica Neue', sans-serif", color: "#fff", minWidth: "200px", padding: "12px", background: "transparent" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
+              <div style={{ fontWeight: 700, fontSize: "14px" }}>{inc.location}</div>
+              {isSelected && (
+                <button onClick={() => setSelectedIncident(null)} style={{ background: "transparent", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "12px", padding: "0 0 4px 4px" }}>✕</button>
+              )}
+            </div>
+            <div style={{ fontSize: "11px", color: "#a1a1aa", marginBottom: "4px" }}>{inc.type || 'General'}</div>
+            {inc.ngo_name && <div style={{ fontSize: "10px", color: "#818cf8", marginBottom: "6px" }}>📋 Reported by: {inc.ngo_name}</div>}
+            <div style={{ display: "flex", gap: "8px", fontSize: "10px", color: "#71717a" }}>
+              <span>👥 {inc.affected || 'Unknown'} affected</span>
+              <span style={{ 
+                padding: "1px 6px", borderRadius: "4px", 
+                background: inc.priority === 'CRITICAL' ? 'rgba(220,38,38,0.25)' : inc.priority === 'HIGH' ? 'rgba(217,119,6,0.25)' : 'rgba(34,197,94,0.25)', 
+                fontWeight: 700, 
+                color: inc.priority === 'CRITICAL' ? '#f87171' : inc.priority === 'HIGH' ? '#fbbf24' : '#4ade80', 
+                letterSpacing: "0.05em" 
+              }}>
+                {inc.priority}
+              </span>
+            </div>
+            {inc.description && <div style={{ fontSize: "11px", color: "#a1a1aa", marginTop: "6px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>{inc.description}</div>}
+            {deployedVols.length > 0 && (
+              <div style={{ marginTop: "6px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "6px" }}>
+                <div style={{ fontSize: "10px", color: "#818cf8", marginBottom: "4px" }}>🛡️ Deployed Volunteers ({deployedVols.length}):</div>
+                {deployedVols.map((v: any, idx: number) => (
+                  <div key={idx} style={{ fontSize: "10px", color: "#a1a1aa", display: "flex", alignItems: "center", gap: "4px", marginBottom: "2px" }}>
+                    {v.avatar_url ? (
+                      <img src={v.avatar_url} style={{ width: "14px", height: "14px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)" }} />
+                    ) : (
+                      <div style={{ width: "14px", height: "14px", borderRadius: "50%", background: "rgba(255,255,255,0.15)" }}></div>
+                    )}
+                    {v.name || 'Volunteer'}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </InfoWindow>
+      )}
+    </>
+  );
 }
 
 // Map component
@@ -52,161 +142,84 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
   selectedIncident: string | null;
   setSelectedIncident: (id: string | null) => void;
 }) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [L, setL] = useState<any>(null);
   const [geocodeDone, setGeocodeDone] = useState(0);
-
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    let isMounted = true;
-    import("leaflet").then((leaflet) => {
-      if (!isMounted) return;
-      const Ld = leaflet.default;
-      setL(Ld);
-      Ld.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-      });
-      import("leaflet/dist/leaflet.css");
-      
-      const container = mapContainerRef.current!;
-      if ((container as any)._leaflet_id) {
-        return;
-      }
-
-      const map = Ld.map(container, {
-        center: DEFAULT_CENTER,
-        zoom: DEFAULT_ZOOM,
-        zoomControl: true,
-        attributionControl: true,
-      });
-      Ld.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org">OSM</a> &copy; <a href="https://carto.com">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 19,
-      }).addTo(map);
-      mapRef.current = map;
-      setMapReady(true);
-    });
-    
-    return () => {
-      isMounted = false;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        setMapReady(false);
-      }
-    };
-  }, []);
+  const geocodingLibrary = useMapsLibrary('geocoding');
 
   // Geocode all incidents whenever they change
   useEffect(() => {
-    if (!incidents.length) return;
+    if (!incidents.length || !geocodingLibrary) return;
     let cancelled = false;
+    const geocoder = new geocodingLibrary.Geocoder();
+
     async function doGeocode() {
       for (const inc of incidents) {
         if (!inc.lat && !inc.lng) {
-          await geocodeLocation(inc.location);
-          await new Promise(r => setTimeout(r, 1000)); // Throttling
+          const key = (inc.location || "").toLowerCase().trim();
+          if (!geocodeCache[key]) {
+            try {
+              const response = await geocoder.geocode({ address: inc.location + ", India" });
+              if (response.results && response.results.length > 0) {
+                const loc = response.results[0].geometry.location;
+                geocodeCache[key] = [loc.lat(), loc.lng()];
+              }
+            } catch (err) {
+              console.warn("Google Geocoding failed for", inc.location, err);
+              // Store fallback so we don't keep trying
+              geocodeCache[key] = getFallbackCoords(inc.id ? inc.id.charCodeAt(0) : 0);
+            }
+          }
+          
+          if (!cancelled) {
+            setGeocodeDone(d => d + 1);
+          }
+          // Smaller throttle since Google Maps API is much faster/more robust than Nominatim
+          await new Promise(r => setTimeout(r, 200)); 
         }
       }
-      if (!cancelled) setGeocodeDone(d => d + 1);
     }
     doGeocode();
     return () => { cancelled = true; };
-  }, [incidents]);
+  }, [incidents, geocodingLibrary]);
 
-  // Place markers
-  useEffect(() => {
-    if (!mapReady || !L || !mapRef.current) return;
-    const map = mapRef.current;
+  const filtered = filter === "all" ? incidents : incidents.filter(i => i.priority === filter);
 
-    // Clear
-    map.eachLayer((layer: any) => {
-      if (layer._isIncidentMarker) map.removeLayer(layer);
-    });
+  return (
+    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
+      <div className="absolute inset-0" style={{ background: "#09090b" }}>
+        <Map
+          defaultCenter={{ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }}
+          defaultZoom={DEFAULT_ZOOM}
+          styles={MAP_STYLES}
+          disableDefaultUI={true}
+          zoomControl={true}
+          gestureHandling="greedy"
+        >
+          {filtered.map((inc, i) => {
+            const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
+            const intensity = inc.priority === "CRITICAL" ? 1.0 : inc.priority === "HIGH" ? 0.7 : 0.4;
+            const heatColor = intensity >= 0.9 ? "#dc2626" : intensity >= 0.6 ? "#d97706" : "#22c55e";
 
-    const filtered = filter === "all" ? incidents : incidents.filter(i => i.priority === filter);
-    const heatPoints: [number, number, number][] = [];
-
-    filtered.forEach((inc, i) => {
-      const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
-      const intensity = inc.priority === "CRITICAL" ? 1.0 : inc.priority === "HIGH" ? 0.7 : 0.4;
-      heatPoints.push([lat, lng, intensity]);
-
-      const color = inc.priority === "CRITICAL" ? "#b91c1c" : inc.priority === "HIGH" ? "#b45309" : "#15803d";
-      const fillColor = inc.priority === "CRITICAL" ? "#dc2626" : inc.priority === "HIGH" ? "#d97706" : "#22c55e";
-      const radius = inc.priority === "CRITICAL" ? 10 : inc.priority === "HIGH" ? 7 : 5;
-
-      const marker = L.circleMarker([lat, lng], {
-        radius,
-        color,
-        fillColor,
-        fillOpacity: inc.priority === "CRITICAL" ? 0.85 : 0.65,
-        weight: 2,
-      });
-      marker._isIncidentMarker = true;
-
-      // Build volunteer HTML for popup
-      const deployedVols = inc.deployed_volunteers || [];
-      const volHtml = deployedVols.length > 0 
-        ? `<div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
-            <div style="font-size: 10px; color: #818cf8; margin-bottom: 4px;">🛡️ Deployed Volunteers (${deployedVols.length}):</div>
-            ${deployedVols.map((v: any) => `<div style="font-size: 10px; color: #a1a1aa; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-              ${v.avatar_url ? `<img src="${v.avatar_url}" style="width:14px; height:14px; border-radius:50%; border: 1px solid rgba(255,255,255,0.2);" />` : '<div style="width:14px; height:14px; border-radius:50%; background: rgba(255,255,255,0.15);"></div>'}
-              ${v.name || 'Volunteer'}
-            </div>`).join('')}
-           </div>` 
-        : '';
-
-      const popupContent = `
-        <div style="font-family: 'Helvetica Neue', sans-serif; color: #fff; min-width: 200px;">
-          <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${inc.location}</div>
-          <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">${inc.type || 'General'}</div>
-          ${inc.ngo_name ? `<div style="font-size: 10px; color: #818cf8; margin-bottom: 6px;">📋 Reported by: ${inc.ngo_name}</div>` : ''}
-          <div style="display: flex; gap: 8px; font-size: 10px; color: #71717a;">
-            <span>👥 ${inc.affected || 'Unknown'} affected</span>
-            <span style="padding: 1px 6px; border-radius: 4px; background: ${inc.priority === 'CRITICAL' ? 'rgba(220,38,38,0.25)' : inc.priority === 'HIGH' ? 'rgba(217,119,6,0.25)' : 'rgba(34,197,94,0.25)'}; font-weight: 700; color: ${inc.priority === 'CRITICAL' ? '#f87171' : inc.priority === 'HIGH' ? '#fbbf24' : '#4ade80'}; letter-spacing: 0.05em;">
-              ${inc.priority}
-            </span>
-          </div>
-          ${inc.description ? `<div style="font-size: 11px; color: #a1a1aa; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">${inc.description}</div>` : ''}
-          ${volHtml}
-        </div>
-      `;
-
-      marker.bindPopup(popupContent, { className: "dark-popup", closeButton: true, maxWidth: 280 });
-      marker.on("mouseover", function (this: any) { this.openPopup(); });
-      marker.on("mouseout", function (this: any) { this.closePopup(); });
-      marker.on("click", () => setSelectedIncident(inc.id));
-      marker.addTo(map);
-    });
-
-    // Heatmap circles
-    heatPoints.forEach(([lat, lng, intensity]) => {
-      const heatColor = intensity >= 0.9 ? "#dc2626" : intensity >= 0.6 ? "#d97706" : "#22c55e";
-      const heatCircle = L.circle([lat, lng], {
-        radius: 15000 * intensity,
-        color: "transparent",
-        fillColor: heatColor,
-        fillOpacity: 0.06 * intensity,
-        weight: 0,
-      });
-      heatCircle._isIncidentMarker = true;
-      heatCircle.addTo(map);
-    });
-
-    // Fit bounds
-    if (filtered.length > 0) {
-      const bounds = filtered.map((inc: any, i: number) => getCoords(inc.location, inc.lat, inc.lng, i));
-      try { map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 }); } catch {}
-    }
-  }, [mapReady, incidents, filter, L, geocodeDone]);
-
-  return <div ref={mapContainerRef} className="absolute inset-0" style={{ background: "#09090b" }} />;
+            return (
+              <div key={`wrapper-${inc.id}`}>
+                <IncidentMarker
+                  inc={inc}
+                  i={i}
+                  selectedIncident={selectedIncident}
+                  setSelectedIncident={setSelectedIncident}
+                />
+                <MapCircle
+                  center={{ lat, lng }}
+                  radius={15000 * intensity}
+                  fillColor={heatColor}
+                  fillOpacity={0.06 * intensity}
+                />
+              </div>
+            );
+          })}
+        </Map>
+      </div>
+    </APIProvider>
+  );
 }
 
 export default function LiveMapPage() {
@@ -282,10 +295,10 @@ export default function LiveMapPage() {
 
   return (
     <DashboardLayout role="admin">
-      {/* Use fixed height that accounts for header (56px) and bottom nav (~80px) */}
-      <div className="flex" style={{ height: 'calc(100vh - 56px - 80px)' }}>
+      {/* Use fixed positioning to escape DashboardLayout's overflow-hidden and padding */}
+      <div className="fixed inset-0 top-14 w-full z-0">
         {/* Map Area */}
-        <div className="flex-1 relative bg-background overflow-hidden font-helvetica">
+        <div className="absolute inset-0 bg-background overflow-hidden font-helvetica">
           <MapInner
             incidents={incidents}
             filter={filter}
@@ -329,8 +342,8 @@ export default function LiveMapPage() {
         </div>
 
         {/* Sidebar */}
-        <div className={`${showSidebar ? 'w-80' : 'w-0 overflow-hidden'} transition-all duration-300 border-l border-foreground/[0.06] flex flex-col bg-background/50 backdrop-blur-md`}>
-          <div className="p-4 border-b border-foreground/[0.06]">
+        <div className={`absolute top-0 right-0 ${showSidebar ? 'w-80' : 'w-0'} h-full flex flex-col bg-background/95 backdrop-blur-xl border-l border-foreground/[0.06] transition-all duration-300 z-[100]`}>
+          <div className="p-4 border-b border-foreground/[0.06] shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold tracking-tight text-sm">Incident Feed</h2>
               <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-foreground/[0.04] border border-foreground/[0.06]">
@@ -348,7 +361,11 @@ export default function LiveMapPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto divide-y divide-white/[0.04]">
+          <div 
+            className="flex-1 overflow-y-auto min-h-0 divide-y divide-white/[0.04] custom-scrollbar overscroll-y-contain"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
             {filtered.length === 0 ? (
               <div className="p-5 text-center text-xs text-accent-dim">
                 <MapPin size={24} className="mx-auto mb-2 opacity-20" />
@@ -356,8 +373,8 @@ export default function LiveMapPage() {
               </div>
             ) : (
               filtered.map(inc => (
-                <button key={inc.id} onClick={() => setSelectedIncident(inc.id)}
-                  className={`w-full text-left p-4 hover:bg-foreground/[0.02] transition-colors ${selectedIncident === inc.id ? "bg-foreground/[0.04]" : ""}`}>
+                <div key={inc.id} onClick={() => setSelectedIncident(inc.id)}
+                  className={`w-full text-left p-4 cursor-pointer hover:bg-foreground/[0.02] transition-colors ${selectedIncident === inc.id ? "bg-foreground/[0.04]" : ""}`}>
                   <div className="flex items-start justify-between mb-1">
                     <span className="text-sm font-medium text-foreground">{inc.location}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
@@ -395,7 +412,7 @@ export default function LiveMapPage() {
                     <span className="ml-auto">{inc.affected} affected</span>
                   </div>
                   <div className="text-[9px] text-accent-dim mt-1">{getTimeAgo(inc.created_at)}</div>
-                </button>
+                </div>
               ))
             )}
           </div>
@@ -403,40 +420,37 @@ export default function LiveMapPage() {
       </div>
 
       <style jsx global>{`
-        .dark-popup .leaflet-popup-content-wrapper {
+        /* Google Maps InfoWindow Customization */
+        .gm-style-iw-c {
           background: rgba(9, 9, 11, 0.92) !important;
-          backdrop-filter: blur(20px);
+          backdrop-filter: blur(20px) !important;
           border: 1px solid rgba(255, 255, 255, 0.1) !important;
           border-radius: 12px !important;
           box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
-          color: #f4f4f5 !important;
+          padding: 0 !important;
         }
-        .dark-popup .leaflet-popup-tip {
+        .gm-style-iw-tc::after {
           background: rgba(9, 9, 11, 0.92) !important;
-          border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
-        .dark-popup .leaflet-popup-close-button {
-          color: #a1a1aa !important;
-          font-size: 16px !important;
+        .gm-style-iw-d {
+          overflow: hidden !important;
         }
-        .dark-popup .leaflet-popup-close-button:hover {
-          color: #fff !important;
+        button.gm-ui-hover-effect {
+          display: none !important;
         }
-        .leaflet-control-attribution {
-          background: rgba(9, 9, 11, 0.7) !important;
-          color: #555 !important;
-          font-size: 9px !important;
+        /* Custom Scrollbar for the feed */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
         }
-        .leaflet-control-attribution a {
-          color: #666 !important;
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
         }
-        .leaflet-control-zoom a {
-          background: rgba(9, 9, 11, 0.85) !important;
-          color: #f4f4f5 !important;
-          border-color: var(--glass-border) !important;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
         }
-        .leaflet-control-zoom a:hover {
-          background: rgba(30, 30, 35, 0.9) !important;
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
     </DashboardLayout>
