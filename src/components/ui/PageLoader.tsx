@@ -69,6 +69,10 @@ export default function PageLoader({ children }: { children: React.ReactNode }) 
                       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                       className="w-3 h-3 bg-[#060612] rounded-sm"
                     />
+
+                    <div className="w-16 h-16 flex items-center justify-center"> <img src="/logo1.png" alt="Impact Hub"
+                      className="w-full h-full object-contain"/>
+                    </div>
                   </div>
                 </motion.div>
 

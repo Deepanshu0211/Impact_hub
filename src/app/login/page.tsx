@@ -61,9 +61,7 @@ export default function LoginPage() {
           transition={{ delay: 0.1 }}
           className="flex items-center gap-3 mb-8"
         >
-          <div className="w-9 h-9 rounded-xl bg-foreground flex items-center justify-center">
-            <div className="w-3 h-3 bg-background rounded-sm" />
-          </div>
+          <div className="w-6 h-6"><img src="/logo1.png" alt="Impact Hub Logo" className="w-full h-full object-contain"/></div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Impact Hub</h1>
             <p className="text-[11px] text-accent-dim tracking-wider uppercase">Smart Resource Allocation</p>
