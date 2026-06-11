@@ -120,7 +120,7 @@ export default function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 group">
               <div className="w-7 h-7 rounded-lg bg-foreground flex items-center justify-center group-hover:rotate-45 transition-transform duration-500 ease-out">
-                <div className="w-2 h-2 bg-background rounded-sm" />
+                <div className="w-6 h-6"><img src="/logo1.png" alt="Impact Hub Logo" className="w-full h-full object-contain"/></div>
               </div>
               <span className="font-semibold text-[15px] tracking-tight text-foreground">
                 Impact Hub
