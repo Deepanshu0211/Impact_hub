@@ -49,7 +49,7 @@ next-env.d.ts
 .full-supabase-schema.sql*
 .full-supabase-schema-no-real-keys.sql*
 
-
+FLUTTER_MOBILE_README.md
 
 # Debug / utility scripts
 check-db.js
