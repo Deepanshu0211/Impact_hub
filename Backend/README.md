@@ -1,45 +1,22 @@
-<div align="center">
-  <img src="https://impact-hub-alpha.vercel.app/logo1.png" alt="Impact Hub Logo" width="120" />
+## 📡 How It Works: The Offline-to-Cloud Pipeline
 
-  # Impact Hub ⚡ UI/UX Architecture
-  
-  **Unify Scattered Data. Coordinate Volunteers. Save Lives.** <br>
-  *A Zero-Latency Tactical Command Center built for the chaos of crisis response.*
+During a disaster, internet and data networks are usually the first things to go down. Our system is built so that victims don't need an app, a smartphone, or an internet connection to get help. All they need is a basic cellular signal. 
 
-  [![Live Demo](https://img.shields.io/badge/Live_Deployment-Vercel-black?style=for-the-badge&logo=vercel)](https://impact-hub-alpha.vercel.app/)
-  [![UI/UX](https://img.shields.io/badge/Design_System-Radix/Tailwind-blue?style=for-the-badge&logo=react)](https://impact-hub-alpha.vercel.app/)
-</div>
+Here is exactly how a simple text message turns into a live rescue mission:
 
-<br>
+### 1. The SOS Text (No Internet Required)
+A victim in a crisis zone takes out any phone (even an old keypad phone) and sends a standard SMS text message to our dedicated Command Hub phone number. They just start the message with our trigger word (e.g., "SOS") and describe their situation. 
+* *Example: "SOS structural collapse at sector 4, 10 people trapped, need medics"*
 
-## 👁️ The Vision: Processing Chaos into Clarity
-During a crisis, paper surveys, WhatsApp texts, and field reports create deadly data silos. Impact Hub's UI is designed with a singular, ruthless focus: **Cognitive ease under high-stress conditions.** We stripped away the noise to build an interface that feels less like a dashboard and more like an autonomous nervous system for disaster response.
+### 2. The Bridge (MacroDroid Intercept)
+We have a central Android phone stationed in a safe zone with an internet connection. This phone acts as the bridge. A background automation tool (MacroDroid) constantly listens for incoming texts. The second it sees a text starting with "SOS", it instantly grabs the message and silently forwards it up to our cloud servers.
 
-## 🎨 Core Design Principles
-* **Dark-Mode First (Tactical Contrast):** Designed for low-light field environments and high-contrast visibility. Critical alerts (heatmaps, priority zones) pulse to immediately draw the eye without overwhelming the dispatcher.
-* **0ms Latency Illusion:** The interface leverages optimistic UI updates and fluid micro-interactions to make complex Vertex AI data parsing feel instantaneous.
-* **Progressive Disclosure:** Users only see what they need, exactly when they need it. From the raw text intake to actionable intelligence, the cognitive load is managed through clean, card-based data structures.
+### 3. The Brain (Google Cloud & AI)
+The message arrives at our custom backend, running 24/7 on Google Cloud. We use Google's Gemini AI to instantly read the messy, panicked text message and cleanly extract the exact data our rescue teams need:
+* **Location:** Sector 4
+* **Type of Emergency:** Structural Collapse
+* **Priority:** HIGH
+* **Resources Needed:** Medics
 
-## 🗺️ The Interface Ecosystem
-
-### 1. The Command Dashboard
-The web interface serves as the high-altitude view for coordinators.
-* **Live Heatmap Intelligence:** Geospatial rendering of crisis zones powered by Maps API. Critical zones are visually weighted by severity, allowing dispatchers to make split-second triage decisions.
-* **Automated Data Structuring:** Messy, unstructured field text is transformed into clean, scannable UI cards detailing *Location, Threat Level, and Resource Deficits*.
-
-### 2. The Field Mobile Experience (Flutter)
-Engineered for the ground reality of India's fragmented device ecosystem.
-* **Native Fluidity:** Built with Flutter to guarantee smooth 60fps performance on low-end Android devices in rural or low-connectivity zones.
-* **Glanceable Matchmaking:** Volunteers receive beautifully formatted, localized mission briefings with clear CTA (Call to Action) buttons for immediate deployment.
-
-## ⚙️ Visual Tech Stack
-- **Frontend Framework:** Next.js / React
-- **Styling:** Tailwind CSS (Precision utility-class architecture)
-- **Mobile Paradigm:** Flutter Native Cross-Platform
-- **Geospatial UI:** Maps API integration for dynamic heatmaps
-- **Motion & Micro-interactions:** CSS keyframing for live-sync indicators and terminal typing effects.
-
----
-<div align="center">
-  <i>Designed and engineered to ensure that when every second matters, the interface never gets in the way.</i>
-</div>
+### 4. The Live Map (Database & Dashboard)
+Once the AI organizes the data, our Python script pushes it straight into our real-time database. The absolute second that data hits the database, our Next.js web dashboard updates automatically. A red priority pin drops onto the live digital map, giving rescue dispatchers the exact coordinates and details they need to send help immediately.
