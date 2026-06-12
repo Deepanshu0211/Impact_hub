@@ -133,6 +133,37 @@ export default function AdminDashboard() {
     await supabase.from('incidents').update({ status: nextStatus }).eq('id', id);
   };
 
+  // Verify & Dispatch: Approve a pending review incident and broadcast to all responders
+  const handleVerifyIncident = async (id: string) => {
+    setIncidents(incs => incs.map(i => i.id === id ? { ...i, status: "Active" } : i));
+    await supabase.from('incidents').update({ status: "Active" }).eq('id', id);
+
+    // Broadcast to all volunteers and NGOs now that it's verified
+    try {
+      const incident = incidents.find(i => i.id === id);
+      if (incident) {
+        const { data: responderProfiles } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .in('role', ['volunteer', 'ngo']);
+
+        const notifications = (responderProfiles || []).map((profile: any) => ({
+          user_id: profile.id,
+          type: "alert" as const,
+          title: `\u2705 VERIFIED: ${incident.type || "Emergency"} in ${incident.location}`,
+          body: `Admin verified and dispatched this emergency. ${incident.description || "Immediate response required."}`,
+          read: false
+        }));
+
+        if (notifications.length > 0) {
+          await supabase.from('notifications').insert(notifications);
+        }
+      }
+    } catch (err) {
+      console.error("Verify broadcast failed:", err);
+    }
+  };
+
   const handlePurgeResolved = async () => {
     const resolvedIds = incidents.filter(i => i.status === "Resolved").map(i => i.id);
     if (resolvedIds.length === 0) return alert("No resolved incidents to purge.");
@@ -357,7 +388,14 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3 font-medium">{inc.location}</td>
                             <td className="px-4 py-3">
                               <div className="text-foreground">{inc.type}</div>
-                              <div className="text-[10px] text-accent-dim mt-0.5">{inc.status}</div>
+                              <div className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
+                                inc.status === "Pending Review" ? "text-amber-400 font-semibold" : "text-accent-dim"
+                              }`}>
+                                {inc.status === "Pending Review" && (
+                                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                )}
+                                {inc.status}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold ${
@@ -370,7 +408,16 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                {inc.status !== "Resolved" && (
+                                {inc.status === "Pending Review" && (
+                                  <button 
+                                    onClick={() => handleVerifyIncident(inc.id)}
+                                    className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded text-[10px] font-bold transition-all flex items-center gap-1"
+                                  >
+                                    <CheckSquare size={12} />
+                                    VERIFY & DISPATCH
+                                  </button>
+                                )}
+                                {inc.status !== "Resolved" && inc.status !== "Pending Review" && (
                                   <button 
                                     onClick={() => handleUpdateStatus(inc.id, inc.status)}
                                     className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded text-[10px] font-bold transition-all"

@@ -22,16 +22,37 @@ export async function POST(req: Request) {
     const reporterName = typeof reporter_name === "string" && reporter_name.trim() ? reporter_name.trim() : user?.user_metadata?.full_name || user?.email || "Anonymous";
     const reporterMobile = typeof reporter_mobile === "string" ? reporter_mobile.trim() : "";
 
+    // === SERVER-SIDE PHONE VALIDATION ===
+    const phoneDigits = reporterMobile.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      return NextResponse.json({
+        error: "Invalid phone number",
+        details: "Phone number must contain at least 10 digits. Please provide a valid, reachable contact number."
+      }, { status: 400 });
+    }
+
     try {
       let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       let usedModel = "gemini-2.5-flash";
 
-      const prompt = `You are an emergency response NLP engine. Analyze the following field report and extract structured data.
+      const prompt = `You are an emergency response NLP engine for "Impact Hub" — a humanitarian disaster relief and community impact platform. Your job is to:
+1. Check if this report is a GENUINE emergency related to our concept (disasters, humanitarian crises, community safety, medical emergencies, infrastructure damage, evacuations, resource shortages like food/water/shelter).
+2. Validate the reporter's phone number.
+3. Extract structured data from the report.
 
 Field Report: "${text}"
+Reporter Phone: "${reporterMobile}"
+
+IMPORTANT RULES:
+- If the report is about something UNRELATED to disaster relief, humanitarian aid, or community emergencies (e.g., ordering food delivery, tech support, jokes, random text, advertising, personal complaints unrelated to emergencies), set "is_relevant" to false.
+- If the phone number looks fake, has repeating digits like 0000000000 or 1234567890, or is clearly not a real number, set "phone_valid" to false.
 
 Return ONLY valid JSON (no markdown, no code fences) with these fields:
 {
+  "is_relevant": true or false (is this report about a real disaster/humanitarian/community emergency?),
+  "rejection_reason": "if is_relevant is false, explain why in one sentence. If relevant, set to null",
+  "phone_valid": true or false (does the phone number look like a real, reachable number?),
+  "phone_issue": "if phone_valid is false, explain why in one sentence. If valid, set to null",
   "location": "extracted location or 'Unknown'",
   "resource_needed": "what resource/help is needed",
   "priority": "CRITICAL or HIGH or NORMAL based on urgency",
@@ -58,6 +79,23 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
+      // === RELEVANCE CHECK ===
+      // Reject reports that are NOT related to Impact Hub's disaster/humanitarian concept
+      if (parsed.is_relevant === false) {
+        return NextResponse.json({
+          error: "Report not relevant",
+          details: parsed.rejection_reason || "This does not appear to be a disaster, humanitarian, or community emergency report. Impact Hub only processes genuine emergency and relief requests."
+        }, { status: 400 });
+      }
+
+      // === PHONE VALIDATION (AI-assisted) ===
+      if (parsed.phone_valid === false) {
+        return NextResponse.json({
+          error: "Invalid phone number",
+          details: parsed.phone_issue || "The phone number provided does not appear to be a valid, reachable number. Please enter a real contact number so responders can follow up."
+        }, { status: 400 });
+      }
+
       // === LOCATION VALIDATION ===
       const loc = (parsed.location || "").trim().toLowerCase();
       if (!loc || loc === "unknown" || loc === "not mentioned" || loc === "n/a" || loc === "unspecified") {
@@ -74,6 +112,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         ngoName = profile?.metadata?.full_name || profile?.metadata?.orgName || user.user_metadata?.full_name || reporterName;
       }
 
+      // === AI CONFIDENCE VERIFICATION ===
+      // If confidence_score > 85% => direct dispatch (Active)
+      // Else => forward to review team (Pending Review) for NGO/Admin verification
+      const confidenceScore = typeof parsed.confidence_score === "number" ? parsed.confidence_score : 0;
+      const isHighConfidence = confidenceScore > 85;
+      const incidentStatus = isHighConfidence ? "Active" : "Pending Review";
+
       // Save to Supabase Incidents
       const { data: incident, error: insertError } = await adminSupabase
         .from('incidents')
@@ -81,12 +126,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
           location: parsed.location || "Unknown Location",
           type: parsed.category || "General",
           priority: parsed.priority || "NORMAL",
-          status: "Active",
+          status: incidentStatus,
           affected: parsed.affected_count || "Unknown",
           description: [
             parsed.summary || "",
             `Emergency user: ${reporterName}`,
             reporterMobile ? `Phone: ${reporterMobile}` : "",
+            `AI Confidence: ${confidenceScore}%${!isHighConfidence ? " — PENDING HUMAN VERIFICATION" : ""}`,
             `Posted at: ${new Date().toISOString()}`
           ].filter(Boolean).join(" | "),
           volunteers_needed: parseInt(parsed.volunteers_needed) || 0,
@@ -123,9 +169,9 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
           ].filter(Boolean).join(" | "),
           priority: parsed.priority || "NORMAL",
           category: parsed.category || "General",
-          status: "Active",
+          status: incidentStatus,
           posted_at: new Date().toISOString(),
-          payload: emergencySubmissionPayload,
+          payload: { ...emergencySubmissionPayload, confidence_score: confidenceScore, is_verified: isHighConfidence },
         });
 
       if (insertError) {
@@ -147,8 +193,9 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         });
       }
 
-      // Broadcast the emergency to all responders first.
-      if (incident) {
+      // === CONFIDENCE-BASED ROUTING ===
+      if (incident && isHighConfidence) {
+        // HIGH CONFIDENCE (>85%): Direct dispatch — broadcast to ALL responders
         try {
           const { data: responderProfiles } = await adminSupabase
             .from('profiles')
@@ -159,7 +206,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
             user_id: profile.id,
             type: "alert" as const,
             title: `🚨 EMERGENCY: ${parsed.category || "General"} in ${parsed.location}`,
-            body: `${ngoName} reported a ${parsed.priority || "HIGH"} emergency. ${parsed.summary || parsed.recommended_action || "Immediate response required."}${reporterMobile ? ` Contact: ${reporterMobile}` : ""}`,
+            body: `${ngoName} reported a ${parsed.priority || "HIGH"} emergency. ${parsed.summary || parsed.recommended_action || "Immediate response required."}${reporterMobile ? ` Contact: ${reporterMobile}` : ""} [AI Confidence: ${confidenceScore}% — Auto-verified]`,
             read: false
           }));
 
@@ -169,10 +216,32 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         } catch (broadcastErr) {
           console.error("Emergency broadcast failed (non-critical):", broadcastErr);
         }
+      } else if (incident && !isHighConfidence) {
+        // LOW CONFIDENCE (≤85%): Forward to review team — only notify NGOs + Admins
+        try {
+          const { data: reviewerProfiles } = await adminSupabase
+            .from('profiles')
+            .select('id, role, metadata')
+            .or('role.eq.ngo,metadata->>is_admin.eq.true');
+
+          const reviewNotifications = (reviewerProfiles || []).map((profile: any) => ({
+            user_id: profile.id,
+            type: "alert" as const,
+            title: `⚠️ REVIEW NEEDED: ${parsed.category || "General"} in ${parsed.location}`,
+            body: `${ngoName} reported an emergency with LOW AI confidence (${confidenceScore}%). This report needs human verification before dispatch. ${parsed.summary || "Please review and verify."}${reporterMobile ? ` Contact: ${reporterMobile}` : ""}`,
+            read: false
+          }));
+
+          if (reviewNotifications.length > 0) {
+            await adminSupabase.from('notifications').insert(reviewNotifications);
+          }
+        } catch (broadcastErr) {
+          console.error("Review notification failed (non-critical):", broadcastErr);
+        }
       }
 
-      // === AUTO-MATCH: Find volunteers and send notifications ===
-      if (incident) {
+      // === AUTO-MATCH: Only run for high-confidence verified emergencies ===
+      if (incident && isHighConfidence) {
         try {
           const { data: volunteers } = await adminSupabase
             .from('profiles')
@@ -232,7 +301,14 @@ Only include volunteers with score >= 50. Use the EXACT id values provided.`;
 
       return NextResponse.json({ 
         success: true, 
-        data: { ...parsed, incident_id: incident?.id, _source: usedModel } 
+        data: { 
+          ...parsed, 
+          incident_id: incident?.id, 
+          _source: usedModel,
+          ai_verified: isHighConfidence,
+          confidence_score: confidenceScore,
+          verification_status: isHighConfidence ? "auto_verified" : "pending_review"
+        } 
       });
     } catch (apiError: unknown) {
       console.error("Gemini API failed:", apiError instanceof Error ? apiError.message : "unknown");
