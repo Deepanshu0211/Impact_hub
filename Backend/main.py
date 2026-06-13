@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from supabase import create_client, Client
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 # 1. Load the secrets from your .env file
 load_dotenv()
@@ -20,16 +21,17 @@ client = genai.Client(
     location="us-central1"
 )
 
-# Initialize Supabase Client
-supabase_url: str = os.environ.get("SUPABASE_URL")
-supabase_key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
+# 4. Initialize Firebase Admin Client securely using the JSON file
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase-key.json")
+    firebase_admin.initialize_app(cred)
+db = firestore.client()
 
-# 4. Define what an incoming data payload looks like
+# 5. Define what an incoming data payload looks like
 class SMSPayload(BaseModel):
     message: str
 
-# 5. Create the web endpoint that receives the data
+# 6. Create the web endpoint that receives the data
 @app.post("/api/sms")
 async def handle_sms(payload: SMSPayload):
     prompt = f"""
@@ -59,7 +61,7 @@ async def handle_sms(payload: SMSPayload):
         
         structured_data = json.loads(response.text)
         
-        db_response = supabase.table("incidents").insert({
+        incident_data = {
             "location": structured_data.get("location", "Unknown"),
             "type": structured_data.get("type", "Other"),
             "priority": structured_data.get("priority", "HIGH"),
@@ -68,13 +70,18 @@ async def handle_sms(payload: SMSPayload):
             "description": payload.message,
             "volunteers_needed": structured_data.get("volunteers_needed", 0),
             "resources_needed": structured_data.get("resources_needed", "None")
-        }).execute()
+        }
+        
+        doc_ref = db.collection("incidents").document()
+        doc_ref.set(incident_data)
         
         return {
             "status": "success",
             "extracted_data": structured_data,
-            "database_id": db_response.data[0]["id"] if db_response.data else None
+            "database_id": doc_ref.id
         }
         
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

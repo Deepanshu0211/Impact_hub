@@ -1,8 +1,7 @@
 fastapi
 uvicorn
-supabase
+firebase-admin
 requests
 python-dotenv
 pydantic
 google-genai
-
