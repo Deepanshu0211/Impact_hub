@@ -58,7 +58,7 @@ next-env.d.ts
 .full-supabase-schema.sql*
 .full-supabase-schema-no-real-keys.sql*
 .impacthub-567ce-firebase-adminsdk-fbsvc-fdac2416cb.json
-
+test-gemini.js
 
 FLUTTER_MOBILE_README.md
 

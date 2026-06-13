@@ -1,6 +1,61 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
+
+const matchRouteSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    recommended_volunteers: {
+      type: SchemaType.ARRAY,
+      description: "List of recommended volunteers",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: {
+            type: SchemaType.STRING,
+            description: "Volunteer ID exactly as provided"
+          },
+          name: {
+            type: SchemaType.STRING,
+            description: "Volunteer name"
+          },
+          match_score: {
+            type: SchemaType.INTEGER,
+            description: "A matching score from 0-100"
+          },
+          reasoning: {
+            type: SchemaType.STRING,
+            description: "Reasoning why this volunteer is a good match"
+          },
+          estimated_arrival: {
+            type: SchemaType.STRING,
+            description: "Estimated arrival time"
+          },
+          assigned_role: {
+            type: SchemaType.STRING,
+            description: "Assigned role description"
+          }
+        },
+        required: ["id", "name", "match_score", "reasoning", "estimated_arrival", "assigned_role"]
+      }
+    },
+    team_composition_notes: {
+      type: SchemaType.STRING,
+      description: "Notes about the overall team composition"
+    },
+    coverage_gaps: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "List of any skills or resources not covered"
+    },
+    dispatch_priority_order: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "Ordered list of volunteer names to dispatch first"
+    }
+  },
+  required: ["recommended_volunteers", "team_composition_notes", "coverage_gaps", "dispatch_priority_order"]
+};
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -29,7 +84,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      let model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: matchRouteSchema
+        }
+      });
       let usedModel = "gemini-2.5-flash";
 
       // Fetch volunteers from Firestore
@@ -80,7 +141,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         result = await model.generateContent(prompt);
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
-          model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+          model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: matchRouteSchema
+            }
+          });
           usedModel = "gemini-2.5-flash-lite";
           result = await model.generateContent(prompt);
         } else {

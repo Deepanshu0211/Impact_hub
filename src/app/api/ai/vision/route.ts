@@ -1,6 +1,87 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
+
+const visionSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    is_relevant: {
+      type: SchemaType.BOOLEAN,
+      description: "Is this image or description about a real disaster, humanitarian crisis, or community emergency?"
+    },
+    rejection_reason: {
+      type: SchemaType.STRING,
+      description: "If is_relevant is false, explain why. If relevant, set to null",
+      nullable: true
+    },
+    phone_valid: {
+      type: SchemaType.BOOLEAN,
+      description: "Does the phone number look like a real, reachable number?"
+    },
+    phone_issue: {
+      type: SchemaType.STRING,
+      description: "If phone_valid is false, explain why. If valid, set to null",
+      nullable: true
+    },
+    severity: {
+      type: SchemaType.STRING,
+      format: "enum",
+      description: "CRITICAL or HIGH or MEDIUM or LOW",
+      enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    },
+    confidence: {
+      type: SchemaType.INTEGER,
+      description: "A confidence score from 0-100"
+    },
+    damage_type: {
+      type: SchemaType.STRING,
+      description: "Type of damage observed or inferred"
+    },
+    description: {
+      type: SchemaType.STRING,
+      description: "Detailed description of what is observed or analyzed"
+    },
+    hazards_identified: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "List of identified hazards"
+    },
+    immediate_actions: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "List of recommended actions to take immediately"
+    },
+    estimated_affected_area: {
+      type: SchemaType.STRING,
+      description: "Estimated area description"
+    },
+    infrastructure_status: {
+      type: SchemaType.STRING,
+      format: "enum",
+      description: "Status of the infrastructure (intact, partial damage, or destroyed)",
+      enum: ["intact", "partial damage", "destroyed"]
+    },
+    volunteers_needed: {
+      type: SchemaType.STRING,
+      description: "A number representing how many volunteers are needed based on severity (e.g., 5, 10, 50)"
+    }
+  },
+  required: [
+    "is_relevant",
+    "rejection_reason",
+    "phone_valid",
+    "phone_issue",
+    "severity",
+    "confidence",
+    "damage_type",
+    "description",
+    "hazards_identified",
+    "immediate_actions",
+    "estimated_affected_area",
+    "infrastructure_status",
+    "volunteers_needed"
+  ]
+};
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -75,7 +156,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      let model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: visionSchema
+        }
+      });
       let usedModel = "gemini-2.5-flash";
       let parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
@@ -153,7 +240,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
           console.warn("503 on gemini-2.5-flash, falling back to gemini-2.5-flash-lite...");
-          model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+          model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: visionSchema
+            }
+          });
           usedModel = "gemini-2.5-flash-lite";
           result = await model.generateContent(parts);
         } else {
