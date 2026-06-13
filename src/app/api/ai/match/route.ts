@@ -1,14 +1,77 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { adminDb, adminAuth } from "@/lib/firebase/admin";
+
+const matchRouteSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    recommended_volunteers: {
+      type: SchemaType.ARRAY,
+      description: "List of recommended volunteers",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: {
+            type: SchemaType.STRING,
+            description: "Volunteer ID exactly as provided"
+          },
+          name: {
+            type: SchemaType.STRING,
+            description: "Volunteer name"
+          },
+          match_score: {
+            type: SchemaType.INTEGER,
+            description: "A matching score from 0-100"
+          },
+          reasoning: {
+            type: SchemaType.STRING,
+            description: "Reasoning why this volunteer is a good match"
+          },
+          estimated_arrival: {
+            type: SchemaType.STRING,
+            description: "Estimated arrival time"
+          },
+          assigned_role: {
+            type: SchemaType.STRING,
+            description: "Assigned role description"
+          }
+        },
+        required: ["id", "name", "match_score", "reasoning", "estimated_arrival", "assigned_role"]
+      }
+    },
+    team_composition_notes: {
+      type: SchemaType.STRING,
+      description: "Notes about the overall team composition"
+    },
+    coverage_gaps: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "List of any skills or resources not covered"
+    },
+    dispatch_priority_order: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "Ordered list of volunteer names to dispatch first"
+    }
+  },
+  required: ["recommended_volunteers", "team_composition_notes", "coverage_gaps", "dispatch_priority_order"]
+};
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
-    // CRITICAL FIX #3: Auth check
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // Authenticate user via Authorization Header ID Token
+    const authHeader = req.headers.get("Authorization");
+    let user: any = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const idToken = authHeader.split("Bearer ")[1];
+      try {
+        user = await adminAuth.verifyIdToken(idToken);
+      } catch (e) {
+        console.warn("Failed to verify ID token:", e);
+      }
+    }
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,18 +84,21 @@ export async function POST(req: Request) {
     }
 
     try {
-      let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      let model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: matchRouteSchema
+        }
+      });
       let usedModel = "gemini-2.5-flash";
 
-      // Fetch volunteers from Supabase
-      const { data: dbVolunteers, error: dbError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'volunteer');
+      // Fetch volunteers from Firestore
+      const volunteersSnap = await adminDb.collection('profiles')
+        .where('role', '==', 'volunteer')
+        .get();
 
-      if (dbError) {
-        console.warn("Could not fetch volunteers from Supabase.", dbError);
-      }
+      const dbVolunteers = volunteersSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
       // Map the database profiles to the format Gemini expects
       const volunteerList = (dbVolunteers || []).map((v: any) => ({
@@ -75,7 +141,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         result = await model.generateContent(prompt);
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
-          model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+          model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: matchRouteSchema
+            }
+          });
           usedModel = "gemini-2.5-flash-lite";
           result = await model.generateContent(prompt);
         } else {
@@ -87,25 +159,27 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
-      // HIGH FIX #9: Validate AI-returned IDs against actual volunteer list
       const validIds = new Set(volunteerList.map((v: any) => v.id));
 
       if (parsed.recommended_volunteers && Array.isArray(parsed.recommended_volunteers)) {
-        const notificationsToInsert = parsed.recommended_volunteers
-          .filter((v: any) => v.id && validIds.has(v.id))
-          .map((v: any) => ({
+        const batch = adminDb.batch();
+        const validRecommendations = parsed.recommended_volunteers.filter((v: any) => v.id && validIds.has(v.id));
+
+        validRecommendations.forEach((v: any) => {
+          const notifRef = adminDb.collection('notifications').doc();
+          batch.set(notifRef, {
+            id: notifRef.id,
             user_id: v.id,
             type: "alert",
             title: "AI Auto-Dispatch Priority Match",
             body: `You have been prioritized for a mission. Recommended role: ${v.assigned_role}. Match reasoning: ${v.reasoning}`,
-            read: false
-          }));
+            read: false,
+            created_at: new Date().toISOString()
+          });
+        });
 
-        if (notificationsToInsert.length > 0) {
-          const { error: notifError } = await supabase.from('notifications').insert(notificationsToInsert);
-          if (notifError) {
-            console.error("Failed to insert AI notifications:", notifError);
-          }
+        if (validRecommendations.length > 0) {
+          await batch.commit();
         }
       }
 

@@ -5,6 +5,10 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+<<<<<<< HEAD
+=======
+import datetime
+>>>>>>> upstream/main
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -66,7 +70,7 @@ async def handle_sms(payload: SMSPayload):
             "type": structured_data.get("type", "Other"),
             "priority": structured_data.get("priority", "HIGH"),
             "status": "Active",
-            "affected": structured_data.get("affected", "Unknown"),
+            "affected": str(structured_data.get("affected", "Unknown")),
             "description": payload.message,
             "volunteers_needed": structured_data.get("volunteers_needed", 0),
             "resources_needed": structured_data.get("resources_needed", "None")

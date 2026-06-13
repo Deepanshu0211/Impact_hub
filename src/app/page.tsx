@@ -1,10 +1,11 @@
 import Navbar from "@/components/layout/Navbar";
 import HeroSection from "@/components/sections/HeroSection";
-import ProblemSection from "@/components/sections/ProblemSection";
-import SolutionSection from "@/components/sections/SolutionSection";
+import HorizontalScrollSection from "@/components/sections/HorizontalScrollSection";
 import MobileAppSection from "@/components/sections/MobileAppSection";
+import SMSFallbackSection from "@/components/sections/SMSFallbackSection";
 import LiveDemoSection from "@/components/sections/LiveDemoSection";
 import ImpactSection from "@/components/sections/ImpactSection";
+import TestimonialsSection from "@/components/sections/TestimonialsSection";
 import RoadmapSection from "@/components/sections/RoadmapSection";
 import FinalCTASection from "@/components/sections/FinalCTASection";
 import Footer from "@/components/layout/Footer";
@@ -22,11 +23,12 @@ export default function Home() {
       <div className="relative z-10">
         <Navbar />
         <HeroSection />
-        <ProblemSection />
-        <SolutionSection />
+        <HorizontalScrollSection />
         <MobileAppSection />
+        <SMSFallbackSection />
         <LiveDemoSection />
         <ImpactSection />
+        <TestimonialsSection />
         <RoadmapSection />
         <FinalCTASection />
         <Footer />

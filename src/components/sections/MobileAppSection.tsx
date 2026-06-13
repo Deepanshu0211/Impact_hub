@@ -59,7 +59,7 @@ export default function MobileAppSection() {
   const marquee2 = useTransform(scrollYProgress, [0, 1], ["-30%", "0%"]);
 
   return (
-    <section ref={containerRef} className="relative min-h-[100vh] py-32 overflow-hidden border-y border-foreground/5 rich-bg">
+    <section id="mobile-app" ref={containerRef} className="relative min-h-[100vh] py-32 overflow-hidden border-y border-foreground/5 rich-bg">
       
       {/* --- SUBTLE AMBIENT BACKGROUND GLOW --- */}
       <div className="absolute top-[20%] right-[10%] w-[500px] h-[500px] bg-foreground/[0.02] blur-[120px] rounded-full pointer-events-none animate-pulse" />

@@ -1,6 +1,7 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { auth, db } from "@/lib/firebase/client";
+import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -18,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 type ReportMode = "text" | "voice" | "image";
 
@@ -32,16 +33,30 @@ type IncidentSummary = {
   created_at: string;
 };
 
+type VerificationResult = {
+  ai_verified: boolean;
+  confidence_score: number;
+  verification_status: "auto_verified" | "pending_review";
+} | null;
+
 const modeConfig: Record<ReportMode, { label: string; icon: any; hint: string }> = {
-  text: { label: "Text", icon: FileText, hint: "Type a quick field note or full incident summary." },
-  voice: { label: "Voice", icon: Mic, hint: "Dictate the problem and let the browser transcribe it." },
-  image: { label: "Image", icon: Camera, hint: "Upload a photo so AI can assess the situation visually." },
+  text: { label: "Text", icon: FileText, hint: "Type incident details" },
+  voice: { label: "Voice", icon: Mic, hint: "Dictate the problem" },
+  image: { label: "Image", icon: Camera, hint: "Upload an image" },
 };
 
 const priorityStyles: Record<string, string> = {
   CRITICAL: "bg-red-500/15 text-red-300 border-red-500/20",
   HIGH: "bg-orange-500/15 text-orange-300 border-orange-500/20",
   NORMAL: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20",
+};
+
+const statusStyles: Record<string, string> = {
+  "Active": "text-emerald-400",
+  "Pending Review": "text-amber-400",
+  "Processing": "text-blue-400",
+  "In Transit": "text-purple-400",
+  "Resolved": "text-slate-500",
 };
 
 const getTimeAgo = (dateString: string) => {
@@ -57,7 +72,7 @@ const getTimeAgo = (dateString: string) => {
 };
 
 export default function EmergencyPage() {
-  const supabase = createClient();
+
   const [mode, setMode] = useState<ReportMode>("text");
   const [location, setLocation] = useState("");
   const [reporterName, setReporterName] = useState("");
@@ -72,37 +87,33 @@ export default function EmergencyPage() {
   const [recentIncidents, setRecentIncidents] = useState<IncidentSummary[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [lastSubmittedAt, setLastSubmittedAt] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    async function loadIncidents() {
-      const { data } = await supabase
-        .from("incidents")
-        .select("id, location, type, priority, status, description, created_at")
-        .neq("status", "Resolved")
-        .order("created_at", { ascending: false })
-        .limit(6);
+    const q = query(
+      collection(db, "incidents"),
+      orderBy("created_at", "desc"),
+      limit(30)
+    );
 
-      if (data) {
-        setRecentIncidents(data as IncidentSummary[]);
-      }
-
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as IncidentSummary))
+        .filter(inc => inc.status !== "Resolved")
+        .slice(0, 6);
+      
+      setRecentIncidents(data);
       setLoadingRecent(false);
-    }
-
-    loadIncidents();
-
-    const channel = supabase
-      .channel("public:emergency_incidents")
-      .on("postgres_changes", { event: "*", schema: "public", table: "incidents" }, () => {
-        loadIncidents();
-      })
-      .subscribe();
+    }, (error) => {
+      console.error("Error loading incidents:", error);
+      setLoadingRecent(false);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (!imageFile) {
@@ -174,6 +185,13 @@ export default function EmergencyPage() {
       return;
     }
 
+    // Phone number validation — must be at least 10 digits
+    const digitsOnly = reporterMobile.replace(/\D/g, "");
+    if (digitsOnly.length < 10) {
+      setErrorMessage("Phone number must be at least 10 digits. Please enter a valid, reachable number.");
+      return;
+    }
+
     if (!location.trim()) {
       setErrorMessage("Location is required so responders can act quickly.");
       return;
@@ -199,6 +217,12 @@ export default function EmergencyPage() {
         timeStyle: "short",
       });
 
+      const headers: Record<string, string> = {};
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       let response: Response;
 
       if (mode === "image" && imageFile) {
@@ -211,12 +235,16 @@ export default function EmergencyPage() {
 
         response = await fetch("/api/ai/vision", {
           method: "POST",
+          headers,
           body: formData,
         });
       } else {
         response = await fetch("/api/ai/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             text: incidentText,
             reporter_name: reporterName.trim(),
@@ -238,21 +266,24 @@ export default function EmergencyPage() {
       setMode("text");
       setLastSubmittedAt(submittedAt);
 
-      const { data } = await supabase
-        .from("incidents")
-        .select("id, location, type, priority, status, description, created_at")
-        .neq("status", "Resolved")
-        .order("created_at", { ascending: false })
-        .limit(6);
-
-      if (data) {
-        setRecentIncidents(data as IncidentSummary[]);
+      // Store AI verification result
+      if (result?.data) {
+        setVerificationResult({
+          ai_verified: result.data.ai_verified ?? true,
+          confidence_score: result.data.confidence_score ?? 0,
+          verification_status: result.data.verification_status ?? "auto_verified",
+        });
       }
 
       if (result?.data?.summary) {
         setReportText(result.data.summary);
       }
-      setSuccessMessage(`Emergency report sent for ${reporterName.trim()} at ${submittedAt}.`);
+
+      if (result?.data?.ai_verified) {
+        setSuccessMessage(`✅ Emergency auto-verified (AI confidence: ${result.data.confidence_score}%) and dispatched for ${reporterName.trim()} at ${submittedAt}.`);
+      } else {
+        setSuccessMessage(`⚠️ Emergency submitted for ${reporterName.trim()} at ${submittedAt}. AI confidence: ${result?.data?.confidence_score ?? 0}% — forwarded to NGO/Admin review team for verification before dispatch.`);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Emergency report failed.");
     } finally {
@@ -295,44 +326,15 @@ export default function EmergencyPage() {
             className="rounded-[2rem] border border-slate-700/70 bg-slate-950/70 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-2xl sm:p-8"
           >
             <div className="space-y-4 max-w-2xl">
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-50 md:text-6xl">
-                Report an emergency without sign-in.
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-50 md:text-5xl">
+                Report an Emergency
               </h1>
-              <p className="max-w-xl text-sm leading-7 text-slate-300 md:text-base">
-                Use text, voice, or an image to send a live incident immediately. This view stays focused on reporting and response, with no shared navigation or login gate in the way.
+              <p className="max-w-xl text-sm leading-6 text-slate-400">
+                Send a live incident report immediately. No sign-in required.
               </p>
             </div>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {[
-                { label: "Broadcast", value: "Volunteers + NGOs", icon: Users },
-                { label: "Mode", value: "Text / Voice / Image", icon: Radio },
-                { label: "Speed", value: "Live incident feed", icon: Clock3 },
-              ].map((item) => (
-                <div key={item.label} className="rounded-2xl border border-slate-700/70 bg-slate-900/60 p-4">
-                  <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    <span>{item.label}</span>
-                    <item.icon size={14} />
-                  </div>
-                  <div className="text-sm font-medium text-slate-100">{item.value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 grid gap-3 rounded-[1.5rem] border border-slate-700/70 bg-slate-900/40 p-4 sm:grid-cols-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Details highlighted</p>
-                <p className="mt-1 text-sm font-medium text-slate-100">Location, description, and evidence appear in the live feed.</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Reporter info</p>
-                <p className="mt-1 text-sm font-medium text-slate-100">Name and phone are saved with the emergency submission.</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Posting time</p>
-                <p className="mt-1 text-sm font-medium text-slate-100">Timestamp is captured when the report is sent.</p>
-              </div>
-            </div>
+            {/* Main reporting form follows */}
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
@@ -397,13 +399,10 @@ export default function EmergencyPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                <label className="space-y-2">
+                <label className="flex flex-col h-full space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Emergency details</span>
                     <span className="text-[10px] text-slate-500">{modeConfig[mode].hint}</span>
-                  </div>
-                  <div className="rounded-2xl border border-slate-700/70 bg-slate-900/50 p-3 text-xs text-slate-300">
-                    Highlight the incident clearly. Mention who needs help, the exact location, and any immediate danger.
                   </div>
                   <textarea
                     value={reportText}
@@ -428,9 +427,6 @@ export default function EmergencyPage() {
                       {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                       {isListening ? "Stop recording" : "Start voice input"}
                     </button>
-                    <p className="text-xs leading-relaxed text-slate-400">
-                      Speech stays in the browser and becomes text for dispatch.
-                    </p>
                   </div>
 
                   <label className="mt-5 block space-y-2">
@@ -443,7 +439,7 @@ export default function EmergencyPage() {
                         className="block w-full text-xs text-slate-300 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-slate-950 file:font-semibold"
                       />
                       <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                        <Upload size={12} /> Attach a photo for visual AI analysis and incident logging.
+                        <Upload size={12} /> Attach a photo
                       </p>
                     </div>
                   </label>
@@ -476,9 +472,30 @@ export default function EmergencyPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
-                    className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100"
+                    className={`rounded-2xl border p-4 text-sm ${
+                      verificationResult?.ai_verified
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100"
+                        : "border-amber-500/20 bg-amber-500/10 text-amber-100"
+                    }`}
                   >
-                    {successMessage}
+                    <div>{successMessage}</div>
+                    {verificationResult && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                          verificationResult.ai_verified
+                            ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-200"
+                            : "border-amber-400/30 bg-amber-500/15 text-amber-200"
+                        }`}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                            verificationResult.ai_verified ? "bg-emerald-400 animate-pulse" : "bg-amber-400 animate-pulse"
+                          }`} />
+                          {verificationResult.ai_verified ? "Auto-verified" : "Pending review"}
+                        </div>
+                        <span className="text-[10px] text-slate-400">
+                          Confidence: {verificationResult.confidence_score}%
+                        </span>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -500,10 +517,6 @@ export default function EmergencyPage() {
                   </>
                 )}
               </button>
-
-              <p className="text-xs leading-relaxed text-slate-400">
-                No sign-in is required here. Reports are sent directly into the live incident feed for responders and stamped with the posting time.
-              </p>
             </form>
           </motion.section>
 
@@ -513,22 +526,108 @@ export default function EmergencyPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="space-y-6"
           >
+            {/* AI Confidence Score Card */}
             <div className="rounded-[2rem] border border-slate-700/70 bg-slate-950/70 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.4)] backdrop-blur-2xl">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-400/20 bg-red-500/10 text-red-100">
-                  <AlertTriangle size={18} />
+                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${
+                  verificationResult
+                    ? verificationResult.ai_verified
+                      ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
+                      : "border-amber-400/20 bg-amber-500/10 text-amber-100"
+                    : "border-red-400/20 bg-red-500/10 text-red-100"
+                }`}>
+                  <Sparkles size={18} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Emergency routing</p>
-                  <h2 className="text-xl font-semibold tracking-tight text-slate-50">Always visible to response teams</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">AI verification</p>
+                  <h2 className="text-xl font-semibold tracking-tight text-slate-50">
+                    {verificationResult ? (verificationResult.ai_verified ? "Auto-verified" : "Pending review") : "Awaiting report"}
+                  </h2>
                 </div>
               </div>
 
-              <div className="space-y-3 text-sm leading-relaxed text-slate-300">
-                <p>Reports are analyzed instantly, converted into incidents, and pushed to volunteer and NGO notification feeds.</p>
-                <p>Use image uploads when you have visual evidence, voice when you need speed, and text when you want precision.</p>
-                <p>The reporter name and phone number are preserved with the submission, so response teams can contact the right person quickly.</p>
-              </div>
+              {verificationResult ? (
+                <div className="space-y-4">
+                  {/* Confidence Gauge */}
+                  <div className="flex items-center justify-center py-3">
+                    <div className="relative h-32 w-32">
+                      <svg className="h-32 w-32 -rotate-90" viewBox="0 0 128 128">
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="8" className="text-slate-800" />
+                        <motion.circle
+                          cx="64" cy="64" r="56"
+                          fill="none"
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          className={verificationResult.confidence_score > 85 ? "text-emerald-400" : verificationResult.confidence_score > 50 ? "text-amber-400" : "text-red-400"}
+                          stroke="currentColor"
+                          strokeDasharray={`${(verificationResult.confidence_score / 100) * 351.86} 351.86`}
+                          initial={{ strokeDasharray: "0 351.86" }}
+                          animate={{ strokeDasharray: `${(verificationResult.confidence_score / 100) * 351.86} 351.86` }}
+                          transition={{ duration: 1.2, ease: "easeOut" }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <motion.span
+                          className={`text-3xl font-bold ${
+                            verificationResult.confidence_score > 85 ? "text-emerald-300" : verificationResult.confidence_score > 50 ? "text-amber-300" : "text-red-300"
+                          }`}
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.3, duration: 0.5 }}
+                        >
+                          {verificationResult.confidence_score}%
+                        </motion.span>
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">Confidence</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className={`rounded-xl border p-3 text-center ${
+                    verificationResult.ai_verified
+                      ? "border-emerald-500/20 bg-emerald-500/10"
+                      : "border-amber-500/20 bg-amber-500/10"
+                  }`}>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className={`inline-block h-2 w-2 rounded-full animate-pulse ${
+                        verificationResult.ai_verified ? "bg-emerald-400" : "bg-amber-400"
+                      }`} />
+                      <span className={`text-xs font-bold uppercase tracking-[0.18em] ${
+                        verificationResult.ai_verified ? "text-emerald-200" : "text-amber-200"
+                      }`}>
+                        {verificationResult.ai_verified ? "Direct dispatch — report is live" : "Forwarded to NGO & Admin review team"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Threshold Explanation */}
+                  <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em]">
+                      <span className="text-slate-500">Threshold</span>
+                      <span className="text-slate-400 font-semibold">&gt;85% = Auto-dispatch</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                      <div className="relative h-full">
+                        <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-500 via-amber-500 to-emerald-500 w-full rounded-full" />
+                        <div className="absolute top-[-2px] bottom-[-2px]" style={{ left: '85%' }}>
+                          <div className="h-full w-px bg-slate-100" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[9px] text-slate-600">
+                      <span>0%</span>
+                      <span>Review</span>
+                      <span>85%</span>
+                      <span>Auto</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-slate-400">
+                  <p>AI instantly analyzes reports for auto-dispatch (&gt;85% confidence).</p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-[2rem] border border-slate-700/70 bg-slate-950/70 p-6 backdrop-blur-2xl">
@@ -544,7 +643,11 @@ export default function EmergencyPage() {
                   <div className="py-12 text-center text-sm text-slate-400">No active emergencies right now.</div>
                 ) : (
                   recentIncidents.map((incident) => (
-                    <div key={incident.id} className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4">
+                    <div key={incident.id} className={`rounded-2xl border p-4 ${
+                      incident.status === "Pending Review"
+                        ? "border-amber-500/30 bg-amber-500/5"
+                        : "border-slate-700/70 bg-slate-900/70"
+                    }`}>
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-50">{incident.location}</p>
@@ -556,7 +659,31 @@ export default function EmergencyPage() {
                       </div>
                       <p className="line-clamp-2 text-xs text-slate-400">{incident.description || "Emergency report in progress."}</p>
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                        <span>Status: {incident.status}</span>
+                        <span className={`flex items-center gap-1.5 ${statusStyles[incident.status] || "text-slate-500"}`}>
+                          {incident.status === "Pending Review" && (
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          )}
+                          {incident.status === "Active" && (
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          )}
+                          {incident.status}
+                        </span>
+                        {/* Extract & display AI confidence from description */}
+                        {(() => {
+                          const match = incident.description?.match(/AI Confidence:\s*(\d+)%/);
+                          if (match) {
+                            const conf = parseInt(match[1]);
+                            return (
+                              <span className={`flex items-center gap-1 font-semibold ${
+                                conf > 85 ? "text-emerald-400" : conf > 50 ? "text-amber-400" : "text-red-400"
+                              }`}>
+                                <Sparkles size={9} />
+                                AI: {conf}%
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                         <span>Posted: {new Date(incident.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
                       </div>
                     </div>
@@ -566,11 +693,33 @@ export default function EmergencyPage() {
             </div>
 
             {lastSubmittedAt && (
-              <div className="rounded-[2rem] border border-emerald-500/20 bg-emerald-500/10 p-6 text-sm text-emerald-100 backdrop-blur-2xl">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">Latest submission</div>
-                <div className="mt-2 text-base font-semibold text-emerald-50">{reporterName || "Reporter"}</div>
-                <div className="mt-1 text-emerald-100/90">Posted at {lastSubmittedAt}</div>
-                <div className="mt-1 text-emerald-100/90">Contact: {reporterMobile || "Not provided"}</div>
+              <div className={`rounded-[2rem] border p-6 text-sm backdrop-blur-2xl ${
+                verificationResult?.ai_verified
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100"
+                  : "border-amber-500/20 bg-amber-500/10 text-amber-100"
+              }`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${
+                  verificationResult?.ai_verified ? "text-emerald-200" : "text-amber-200"
+                }`}>Latest submission</div>
+                <div className={`mt-2 text-base font-semibold ${
+                  verificationResult?.ai_verified ? "text-emerald-50" : "text-amber-50"
+                }`}>{reporterName || "Reporter"}</div>
+                <div className="mt-1 opacity-90">Posted at {lastSubmittedAt}</div>
+                <div className="mt-1 opacity-90">Contact: {reporterMobile || "Not provided"}</div>
+                {verificationResult && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                      verificationResult.ai_verified
+                        ? "border-emerald-400/30 bg-emerald-500/20 text-emerald-200"
+                        : "border-amber-400/30 bg-amber-500/20 text-amber-200"
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        verificationResult.ai_verified ? "bg-emerald-400" : "bg-amber-400"
+                      }`} />
+                      {verificationResult.confidence_score}% confidence
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </motion.aside>

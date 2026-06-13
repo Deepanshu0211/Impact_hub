@@ -2,10 +2,16 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Clock, CheckCircle2, Star, ArrowRight, Zap, Trophy, Target, Heart, Navigation2, BrainCircuit, X, Sparkles, Shield, Bell } from "lucide-react";
+import { MapPin, Clock, CheckCircle2, Star, ArrowRight, Zap, Trophy, Target, Heart, Navigation2, BrainCircuit, X, Sparkles, Shield, Bell, XCircle } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { db, storage } from "@/lib/firebase/client";
+import { 
+  collection, doc, getDoc, getDocs, query, where, orderBy, limit, 
+  onSnapshot, setDoc 
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 interface AIBriefing {
   location: string;
@@ -24,6 +30,8 @@ function VolunteerDashboardInner() {
   
   const [availableMissions, setAvailableMissions] = useState<any[]>([]);
   const [activeAssignments, setActiveAssignments] = useState<any[]>([]);
+  const [completedAssignments, setCompletedAssignments] = useState<any[]>([]);
+  const [deploymentTab, setDeploymentTab] = useState<"active" | "completed">("active");
   const [myNgoIds, setMyNgoIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -33,90 +41,149 @@ function VolunteerDashboardInner() {
     impactScore: "0",
   });
   
-  // AI briefing modal
   const [showAIBriefing, setShowAIBriefing] = useState(false);
   const [aiBriefingData, setAiBriefingData] = useState<AIBriefing | null>(null);
   const [pendingDeployId, setPendingDeployId] = useState<string | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
   
-  const supabase = createClient();
+  // Credits & Modals
+  const [volCredits, setVolCredits] = useState<number>(0);
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [proofText, setProofText] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofFileUrl, setProofFileUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [completingMissionId, setCompletingMissionId] = useState<string | null>(null);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
+  const [redeemError, setRedeemError] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const searchQuery = searchParams?.get("q")?.toLowerCase() || "";
-  const [user, setUser] = useState<any>(null);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        userIdRef.current = user.id;
-        fetchData(user.id);
-      }
-    }
-    
-    init();
+    if (!user) return;
+    userIdRef.current = user.uid;
+    fetchData(user.uid);
 
     // Set up realtime subscriptions
-    const channel = supabase
-      .channel('public:volunteer_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, () => {
-        if (userIdRef.current) fetchData(userIdRef.current);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, () => {
-        if (userIdRef.current) fetchData(userIdRef.current);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
-        if (userIdRef.current) fetchAISuggestions(userIdRef.current);
-      })
-      .subscribe();
+    const unsubscribeIncidents = onSnapshot(collection(db, "incidents"), () => {
+      if (userIdRef.current) fetchData(userIdRef.current);
+    });
+    const unsubscribeMissions = onSnapshot(collection(db, "missions"), () => {
+      if (userIdRef.current) fetchData(userIdRef.current);
+    });
+    const unsubscribeNotifications = onSnapshot(collection(db, "notifications"), () => {
+      if (userIdRef.current) fetchAISuggestions(userIdRef.current);
+    });
       
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeIncidents();
+      unsubscribeMissions();
+      unsubscribeNotifications();
     };
-  }, [supabase]);
+  }, [user]);
 
   const fetchData = async (userId: string) => {
-    // Fetch Active Incidents not yet resolved
-    const { data: incidents } = await supabase
-      .from('incidents')
-      .select('*, profiles(*), missions(id, volunteer_id, profiles(*))')
-      .neq('status', 'Resolved')
-      .order('created_at', { ascending: false });
-      
-    if (incidents) setAvailableMissions(incidents);
+    try {
+      // Fetch volunteer profile to get credits
+      const profileSnap = await getDoc(doc(db, "profiles", userId));
+      if (profileSnap.exists()) {
+        setVolCredits(profileSnap.data().credits || 0);
+      }
 
-    // Fetch my NGO memberships
-    const { data: memberships } = await supabase
-      .from('ngo_members')
-      .select('ngo_user_id')
-      .eq('member_user_id', userId);
+      // Fetch Active Incidents not yet resolved
+      const incidentsSnap = await getDocs(
+        query(collection(db, "incidents"), orderBy("created_at", "desc"))
+      );
       
-    if (memberships) {
-      setMyNgoIds(memberships.map((m: any) => m.ngo_user_id));
-    }
+      const incList: any[] = [];
+      const profileCache: { [key: string]: any } = {};
 
-    // Fetch AI suggestions (notifications)
-    fetchAISuggestions(userId);
+      for (const incDoc of incidentsSnap.docs) {
+        const inc = { id: incDoc.id, ...incDoc.data() } as any;
+        if (inc.status === "Resolved") continue;
 
-    // Fetch My Active Missions
-    const { data: missions } = await supabase
-      .from('missions')
-      .select('*, incident:incidents(*)')
-      .eq('volunteer_id', userId)
-      .neq('status', 'Completed');
+        // Fetch creator profile
+        if (inc.created_by) {
+          if (!profileCache[inc.created_by]) {
+            const pSnap = await getDoc(doc(db, "profiles", inc.created_by));
+            if (pSnap.exists()) {
+              profileCache[inc.created_by] = pSnap.data();
+            }
+          }
+          inc.profiles = profileCache[inc.created_by] || null;
+        }
+
+        // Fetch missions for this incident
+        const mSnap = await getDocs(
+          query(collection(db, "missions"), where("incident_id", "==", incDoc.id))
+        );
+        const missionsList: any[] = [];
+
+        for (const mDoc of mSnap.docs) {
+          const mData = { id: mDoc.id, ...mDoc.data() } as any;
+          
+          // Fetch volunteer profile
+          if (mData.volunteer_id) {
+            if (!profileCache[mData.volunteer_id]) {
+              const vpSnap = await getDoc(doc(db, "profiles", mData.volunteer_id));
+              if (vpSnap.exists()) {
+                profileCache[mData.volunteer_id] = vpSnap.data();
+              }
+            }
+            mData.profiles = profileCache[mData.volunteer_id] || null;
+          }
+          missionsList.push(mData);
+        }
+        inc.missions = missionsList;
+        incList.push(inc);
+      }
+      setAvailableMissions(incList);
+
+      // Fetch my NGO memberships
+      const membershipSnap = await getDocs(
+        query(collection(db, "ngo_members"), where("member_user_id", "==", userId))
+      );
+      setMyNgoIds(membershipSnap.docs.map(doc => doc.data().ngo_user_id));
+
+      // Fetch AI suggestions (notifications)
+      fetchAISuggestions(userId);
+
+      // Fetch My Active Missions and completed ones
+      const myMissionsSnap = await getDocs(
+        query(collection(db, "missions"), where("volunteer_id", "==", userId))
+      );
       
-    if (missions) setActiveAssignments(missions);
+      const activeList: any[] = [];
+      const completedList: any[] = [];
+      const allMissionsList: any[] = [];
 
-    // Fetch My Completed Missions for stats
-    const { data: allMissions } = await supabase
-      .from('missions')
-      .select('*, incident:incidents(*)')
-      .eq('volunteer_id', userId);
-      
-    if (allMissions) {
-      const completed = allMissions.filter((m: any) => m.status === 'Completed');
+      for (const mDoc of myMissionsSnap.docs) {
+        const mData = { id: mDoc.id, ...mDoc.data() } as any;
+        if (mData.incident_id) {
+          const incDoc = await getDoc(doc(db, "incidents", mData.incident_id));
+          if (incDoc.exists()) {
+            mData.incident = incDoc.data();
+          }
+        }
+        allMissionsList.push(mData);
+        if (mData.status !== "Completed") {
+          activeList.push(mData);
+        } else {
+          completedList.push(mData);
+        }
+      }
+      setActiveAssignments(activeList);
+      setCompletedAssignments(completedList);
+
+      // Calculate stats
+      const completed = allMissionsList.filter((m: any) => m.status === 'Completed');
       const missionsComplete = completed.length;
       let peopleHelped = 0;
       completed.forEach((m: any) => {
@@ -132,9 +199,11 @@ function VolunteerDashboardInner() {
         hoursVolunteered: hoursVolunteered.toString(),
         impactScore: impactScore.toString()
       });
+    } catch (error) {
+      console.error("Error fetching volunteer data:", error);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const filteredMissions = useMemo(() => {
@@ -157,20 +226,30 @@ function VolunteerDashboardInner() {
   }, [availableMissions, searchQuery, myNgoIds]);
 
   const fetchAISuggestions = async (userId: string) => {
-    const { data: notifs } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('type', 'ai')
-      .eq('read', false)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    if (notifs) setAiSuggestions(notifs);
+    try {
+      const notifsSnap = await getDocs(
+        query(
+          collection(db, "notifications"),
+          where("user_id", "==", userId),
+          where("type", "==", "ai"),
+          where("read", "==", false),
+          orderBy("created_at", "desc"),
+          limit(5)
+        )
+      );
+      setAiSuggestions(notifsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+    }
   };
 
   const dismissSuggestion = async (id: string) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    setAiSuggestions(prev => prev.filter(s => s.id !== id));
+    try {
+      await setDoc(doc(db, "notifications", id), { read: true }, { merge: true });
+      setAiSuggestions(prev => prev.filter(s => s.id !== id));
+    } catch (error) {
+      console.error("Error dismissing suggestion:", error);
+    }
   };
 
   // When Deploy is clicked, show AI briefing first
@@ -182,107 +261,176 @@ function VolunteerDashboardInner() {
     const incident = availableMissions.find(m => m.id === incidentId);
     
     // Try to fetch NLP extraction for this incident
-    const { data: extractions } = await supabase
-      .from('nlp_extractions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
+    try {
+      const nlpSnap = await getDocs(
+        query(collection(db, "nlp_extractions"), orderBy("created_at", "desc"), limit(20))
+      );
+      const extractions = nlpSnap.docs.map(doc => doc.data());
 
-    // Find matching extraction by location
-    let matchedExtraction: any = null;
-    if (extractions && incident) {
-      matchedExtraction = extractions.find((ext: any) => {
-        const loc = ext.extracted_data?.location?.toLowerCase() || "";
-        const incLoc = incident.location?.toLowerCase() || "";
-        return loc === incLoc || loc.includes(incLoc) || incLoc.includes(loc);
-      });
-    }
+      // Find matching extraction by location
+      let matchedExtraction: any = null;
+      if (extractions && incident) {
+        matchedExtraction = extractions.find((ext: any) => {
+          const loc = ext.extracted_data?.location?.toLowerCase() || "";
+          const incLoc = incident.location?.toLowerCase() || "";
+          return loc === incLoc || loc.includes(incLoc) || incLoc.includes(loc);
+        });
+      }
 
-    if (matchedExtraction?.extracted_data) {
-      setAiBriefingData({
-        location: matchedExtraction.extracted_data.location || incident?.location || "Unknown",
-        category: matchedExtraction.extracted_data.category || incident?.type || "General",
-        priority: matchedExtraction.extracted_data.priority || incident?.priority || "NORMAL",
-        affected: matchedExtraction.extracted_data.affected_count || incident?.affected || "Unknown",
-        description: incident?.description || matchedExtraction.extracted_data.summary || "",
-        summary: matchedExtraction.extracted_data.summary || "",
-        recommended_action: matchedExtraction.extracted_data.recommended_action || "Proceed to location and assess the situation",
-        confidence_score: matchedExtraction.extracted_data.confidence_score || 85,
-      });
-    } else {
-      // Use incident data directly
-      setAiBriefingData({
-        location: incident?.location || "Unknown",
-        category: incident?.type || "General",
-        priority: incident?.priority || "NORMAL",
-        affected: incident?.affected || "Unknown",
-        description: incident?.description || "",
-        summary: incident?.description || "AI-analyzed incident requiring immediate response",
-        recommended_action: "Proceed to the incident location, assess the situation, and coordinate with nearby volunteers",
-        confidence_score: 78,
-      });
+      if (matchedExtraction?.extracted_data) {
+        setAiBriefingData({
+          location: matchedExtraction.extracted_data.location || incident?.location || "Unknown",
+          category: matchedExtraction.extracted_data.category || incident?.type || "General",
+          priority: matchedExtraction.extracted_data.priority || incident?.priority || "NORMAL",
+          affected: matchedExtraction.extracted_data.affected_count || incident?.affected || "Unknown",
+          description: incident?.description || matchedExtraction.extracted_data.summary || "",
+          summary: matchedExtraction.extracted_data.summary || "",
+          recommended_action: matchedExtraction.extracted_data.recommended_action || "Proceed to location and assess the situation",
+          confidence_score: matchedExtraction.extracted_data.confidence_score || 85,
+        });
+      } else {
+        // Use incident data directly
+        setAiBriefingData({
+          location: incident?.location || "Unknown",
+          category: incident?.type || "General",
+          priority: incident?.priority || "NORMAL",
+          affected: incident?.affected || "Unknown",
+          description: incident?.description || "",
+          summary: incident?.description || "AI-analyzed incident requiring immediate response",
+          recommended_action: "Proceed to the incident location, assess the situation, and coordinate with nearby volunteers",
+          confidence_score: 78,
+        });
+      }
+    } catch (error) {
+      console.error("Error during deployment load:", error);
+    } finally {
+      setBriefingLoading(false);
     }
-    
-    setBriefingLoading(false);
   };
 
   // Confirm deployment after AI briefing
   const confirmDeploy = async () => {
     if (!pendingDeployId || !user) return;
     
-    // HIGH FIX #5: Prevent duplicate deployments
-    const { data: existing } = await supabase
-      .from('missions')
-      .select('id')
-      .eq('incident_id', pendingDeployId)
-      .eq('volunteer_id', user.id)
-      .maybeSingle();
-    
-    if (existing) {
+    try {
+      // Prevent duplicate deployments
+      const existingSnap = await getDocs(
+        query(
+          collection(db, "missions"),
+          where("incident_id", "==", pendingDeployId),
+          where("volunteer_id", "==", user.uid)
+        )
+      );
+      
+      if (!existingSnap.empty) {
+        setShowAIBriefing(false);
+        setPendingDeployId(null);
+        return; // Already deployed
+      }
+
+      setAcceptedMission(pendingDeployId);
       setShowAIBriefing(false);
-      setPendingDeployId(null);
-      return; // Already deployed
+      
+      // Create mission in Firestore
+      const missionRef = doc(collection(db, "missions"));
+      await setDoc(missionRef, {
+        incident_id: pendingDeployId,
+        volunteer_id: user.uid,
+        status: 'In Progress',
+        created_at: new Date().toISOString()
+      });
+
+      // Update incident status
+      await setDoc(doc(db, "incidents", pendingDeployId), {
+        status: 'In Transit'
+      }, { merge: true });
+      
+      setTimeout(() => {
+        setAcceptedMission(null);
+        setPendingDeployId(null);
+        fetchData(user.uid);
+      }, 1000);
+    } catch (error) {
+      console.error("Error confirming deployment:", error);
     }
-
-    setAcceptedMission(pendingDeployId);
-    setShowAIBriefing(false);
-    
-    // Create mission
-    await supabase.from('missions').insert([{
-      incident_id: pendingDeployId,
-      volunteer_id: user.id,
-      status: 'In Progress'
-    }]);
-
-    // Update incident status
-    await supabase.from('incidents').update({
-      status: 'In Transit'
-    }).eq('id', pendingDeployId);
-    
-    setTimeout(() => {
-      setAcceptedMission(null);
-      setPendingDeployId(null);
-      fetchData(user.id);
-    }, 1000);
   };
   
-  const completeMission = async (missionId: string, incidentId: string) => {
-    if (!user) return;
+  const completeMission = async () => {
+    if (!user || !completingMissionId) return;
     
-    // Mark mission completed
-    await supabase.from('missions').update({
-      status: 'Completed'
-    }).eq('id', missionId);
-    
-    // Mark incident resolved
-    await supabase.from('incidents').update({
-      status: 'Resolved'
-    }).eq('id', incidentId);
-    
-    fetchData(user.id);
+    try {
+      setIsUploading(true);
+      let proofUrl = null;
+      if (proofFile) {
+         const storageRef = ref(storage, `proofs/${completingMissionId}_${Date.now()}_${proofFile.name}`);
+         await uploadBytes(storageRef, proofFile);
+         proofUrl = await getDownloadURL(storageRef);
+      }
+      
+      // Mark mission pending approval
+      await setDoc(doc(db, "missions", completingMissionId), {
+        status: 'Pending Approval',
+        proof_text: proofText,
+        ...(proofUrl ? { proof_url: proofUrl } : {})
+      }, { merge: true });
+      
+      setShowProofModal(false);
+      setProofText("");
+      setProofFile(null);
+      setProofFileUrl(null);
+      setCompletingMissionId(null);
+      setIsUploading(false);
+      fetchData(user.uid);
+    } catch (error) {
+      console.error("Error submitting proof:", error);
+      setIsUploading(false);
+    }
+  };
+
+  const handleRedeem = async () => {
+    setRedeemError("");
+    if (!upiId.includes("@")) {
+      setRedeemError("Please enter a valid UPI ID");
+      return;
+    }
+    if (!user || volCredits <= 0) return;
+
+    setIsRedeeming(true);
+    try {
+      // Deduct credits to 0 and save upi_id
+      await setDoc(doc(db, "profiles", user.uid), { 
+        credits: 0,
+        last_upi_id: upiId 
+      }, { merge: true });
+
+      // Log redemption transaction
+      const txRef = doc(collection(db, "credit_transactions"));
+      await setDoc(txRef, {
+        from_id: user.uid,
+        to_id: "impact_hub_system",
+        amount: volCredits,
+        type: "redeem",
+        upi_id: upiId,
+        created_at: new Date().toISOString()
+      });
+
+      setVolCredits(0);
+      setRedeemSuccess(true);
+      setTimeout(() => {
+        setRedeemSuccess(false);
+        setShowRedeemModal(false);
+        setUpiId("");
+      }, 3000);
+    } catch (error) {
+      console.error("Redeem error:", error);
+      setRedeemError("Failed to process redemption. Try again.");
+    } finally {
+      setIsRedeeming(false);
+    }
   };
 
   const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Unknown';
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
@@ -301,22 +449,35 @@ function VolunteerDashboardInner() {
             <h1 className="text-3xl font-bold mb-1 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Volunteer Operations</h1>
             <p className="text-sm text-accent-dim">Accept missions, deploy resources, and track field impact.</p>
           </div>
+{/* 
+          <div>
+            <h1 className="text-3xl font-bold mb-1 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Volunteer Operations</h1>
+            <p className="text-sm text-accent-dim">Accept missions, deploy resources, and track field impact.</p>
+          </div> */}
 
-          {/* Status Toggle */}
-          <div className="flex items-center gap-1 p-1 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] backdrop-blur-sm shadow-lg">
-            {(["available", "busy", "offline"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatus(s)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all capitalize ${
-                  status === s
-                    ? "bg-foreground text-background shadow-md"
-                    : "text-accent-dim hover:text-foreground"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          {/* Status & Redeem */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowRedeemModal(true)}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-xs text-green-400 font-bold hover:bg-green-500/20 transition-all shadow-[0_0_15px_rgba(34,197,94,0.15)]"
+            >
+              <Zap size={12} /> Redeem ₹{volCredits * 100}
+            </button>
+            <div className="flex items-center gap-1 p-1 rounded-full bg-foreground/[0.04] border border-foreground/[0.08] backdrop-blur-sm shadow-lg">
+              {(["available", "busy", "offline"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all capitalize ${
+                    status === s
+                      ? "bg-foreground text-background shadow-md"
+                      : "text-accent-dim hover:text-foreground"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -325,7 +486,7 @@ function VolunteerDashboardInner() {
           {[
             { label: "Missions Complete", value: stats.missionsComplete, icon: Trophy, sub: "This month" },
             { label: "People Helped", value: stats.peopleHelped, icon: Heart, sub: "Total impact" },
-            { label: "Hours Volunteered", value: stats.hoursVolunteered, icon: Clock, sub: "This quarter" },
+            { label: "Wallet Credits", value: volCredits.toString(), icon: Zap, sub: `₹${volCredits * 100} Available` },
             { label: "Impact Score", value: stats.impactScore, icon: Star, sub: "Top 5%" },
           ].map((stat, i) => (
             <motion.div
@@ -391,21 +552,37 @@ function VolunteerDashboardInner() {
             transition={{ delay: 0.3 }}
             className="xl:col-span-2 space-y-4"
           >
-            <h2 className="font-semibold tracking-tight flex items-center gap-2 text-lg">
-              <Target size={18} className="text-accent-muted" />
-              Active Deployments
-              <span className="ml-auto text-[10px] text-foreground font-mono bg-foreground/10 px-2 py-0.5 rounded-full border border-foreground/20">{activeAssignments.length} ACTIVE</span>
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold tracking-tight flex items-center gap-2 text-lg">
+                <Target size={18} className="text-accent-muted" />
+                My Deployments
+              </h2>
+              <div className="flex bg-foreground/5 p-1 rounded-lg border border-foreground/10">
+                <button 
+                  onClick={() => setDeploymentTab('active')} 
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deploymentTab === 'active' ? 'bg-background shadow text-foreground' : 'text-accent-dim hover:text-foreground'}`}
+                >
+                  Active ({activeAssignments.length})
+                </button>
+                <button 
+                  onClick={() => setDeploymentTab('completed')} 
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${deploymentTab === 'completed' ? 'bg-background shadow text-foreground' : 'text-accent-dim hover:text-foreground'}`}
+                >
+                  Completed ({completedAssignments.length})
+                </button>
+              </div>
+            </div>
 
             {loading ? (
               <div className="p-8 text-center text-xs text-accent-dim glass-panel rounded-2xl border border-foreground/[0.06]">Loading assignments...</div>
-            ) : activeAssignments.length === 0 ? (
+            ) : (deploymentTab === 'active' && activeAssignments.length === 0) || (deploymentTab === 'completed' && completedAssignments.length === 0) ? (
               <div className="p-8 flex flex-col items-center justify-center text-center text-xs text-accent-dim glass-panel rounded-2xl border border-foreground/[0.06]">
                 <Navigation2 size={24} className="opacity-20 mb-3" />
-                You have no active missions.<br/>Standby for deployment.
+                You have no {deploymentTab} missions.<br/>
+                {deploymentTab === 'active' ? "Standby for deployment." : "Complete a mission to see it here."}
               </div>
             ) : (
-              activeAssignments.map((a, i) => (
+              (deploymentTab === 'active' ? activeAssignments : completedAssignments).map((a, i) => (
                 <motion.div
                   key={a.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -413,7 +590,7 @@ function VolunteerDashboardInner() {
                   transition={{ delay: 0.4 + i * 0.1 }}
                   className="p-5 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-transparent border border-foreground/[0.08] shadow-lg glass-panel relative overflow-hidden"
                 >
-                  <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
+                  <div className={`absolute top-0 left-0 w-1 h-full ${a.status === 'Completed' ? 'bg-green-500/50' : 'bg-indigo-500/50'}`} />
                   <div className="flex items-start justify-between mb-4 pl-2">
                     <div>
                       <div className="font-bold text-lg text-foreground mb-1 tracking-tight">{a.incident?.location || "Unknown"}</div>
@@ -422,20 +599,34 @@ function VolunteerDashboardInner() {
                         {a.incident?.type || "Mission"} • <span className="font-mono">{a.incident?.affected} affected</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold tracking-wider text-green-400 bg-green-400/10 px-2.5 py-1 rounded-full border border-green-400/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                    <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full border ${
+                      a.status === 'Completed' 
+                        ? 'text-green-400 bg-green-400/10 border-green-400/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
+                        : a.status === 'Pending Approval'
+                        ? 'text-amber-400 bg-amber-400/10 border-amber-400/20 shadow-[0_0_10px_rgba(251,191,36,0.2)]'
+                        : 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
+                    }`}>
                       {a.status}
                     </span>
                   </div>
 
                   {/* Complete Button */}
-                  <div className="mt-5 flex gap-2 pl-2">
-                    <button 
-                      onClick={() => completeMission(a.id, a.incident_id)}
-                      className="w-full h-11 rounded-xl bg-foreground text-background hover:bg-foreground/80 text-sm font-bold flex justify-center items-center gap-2 transition-all hover:shadow-[0_0_20px_var(--shimmer-c)] active:scale-[0.98]"
-                    >
-                      <CheckCircle2 size={16} /> Mark Mission Completed
-                    </button>
-                  </div>
+                  {a.status !== 'Completed' && (
+                    <div className="mt-5 flex gap-2 pl-2">
+                      {a.status === 'Pending Approval' ? (
+                        <div className="w-full h-11 rounded-xl bg-foreground/5 text-accent-dim text-sm font-bold flex justify-center items-center border border-foreground/10">
+                          <Clock size={16} className="mr-2" /> Pending NGO Approval
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => { setCompletingMissionId(a.id); setShowProofModal(true); }}
+                          className="w-full h-11 rounded-xl bg-foreground text-background hover:bg-foreground/80 text-sm font-bold flex justify-center items-center gap-2 transition-all hover:shadow-[0_0_20px_var(--shimmer-c)] active:scale-[0.98]"
+                        >
+                          <CheckCircle2 size={16} /> Upload Proof & Complete
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               ))
             )}
@@ -669,6 +860,131 @@ function VolunteerDashboardInner() {
                 </motion.div>
               </div>
             </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Proof Upload Modal */}
+      <AnimatePresence>
+        {showProofModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowProofModal(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md bg-background border border-foreground/10 rounded-2xl shadow-2xl p-6">
+              <h3 className="font-bold text-lg mb-2">Upload Proof of Work</h3>
+              <p className="text-xs text-accent-dim mb-4">Describe the work completed or paste links to images. The NGO will approve this to release your credits.</p>
+              
+              <textarea
+                value={proofText}
+                onChange={(e) => setProofText(e.target.value)}
+                placeholder="e.g. Distributed 50 water bottles."
+                className="w-full h-24 px-4 py-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.1] text-sm text-foreground placeholder:text-accent-muted focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 resize-none mb-4"
+              />
+              
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-accent-dim mb-2 uppercase">Image Proof</label>
+                {proofFileUrl ? (
+                  <div className="relative rounded-xl overflow-hidden border border-foreground/10 bg-black">
+                    <img src={proofFileUrl} alt="Proof preview" className="w-full h-32 object-cover opacity-80" />
+                    <button 
+                      onClick={() => { setProofFile(null); setProofFileUrl(null); }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-foreground/[0.08] border-dashed rounded-xl cursor-pointer bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-all">
+                    <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                      <p className="text-xs text-accent-muted font-bold mt-2">Click to upload image</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setProofFile(e.target.files[0]);
+                          setProofFileUrl(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }} 
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setShowProofModal(false);
+                    setProofFile(null);
+                    setProofFileUrl(null);
+                  }} 
+                  className="flex-1 h-11 rounded-xl bg-foreground/[0.04] text-sm font-medium hover:bg-foreground/[0.08] transition-all"
+                  disabled={isUploading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={completeMission} 
+                  disabled={!proofText.trim() && !proofFile || isUploading} 
+                  className="flex-[2] h-11 rounded-xl bg-foreground text-background font-bold text-sm flex items-center justify-center gap-2 hover:bg-foreground/80 disabled:opacity-50 transition-all"
+                >
+                  {isUploading ? (
+                    <><div className="w-4 h-4 border-2 border-background/20 border-t-background rounded-full animate-spin" /> Uploading...</>
+                  ) : (
+                    <><CheckCircle2 size={16} /> Submit Proof</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Redeem Modal */}
+      <AnimatePresence>
+        {showRedeemModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowRedeemModal(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} className="relative w-full max-w-sm bg-background border border-foreground/10 rounded-2xl shadow-2xl p-6">
+              <h3 className="font-bold text-lg mb-1 flex items-center gap-2"><Zap size={18} className="text-green-500" /> Redeem Credits</h3>
+              <p className="text-xs text-accent-dim mb-6">Convert your Impact Hub credits to real money.</p>
+              
+              <div className="bg-foreground/[0.02] border border-foreground/[0.06] rounded-xl p-4 mb-6 flex flex-col items-center">
+                <div className="text-[10px] text-accent-dim uppercase tracking-widest font-bold mb-1">Available Balance</div>
+                <div className="text-3xl font-bold">₹{volCredits * 100}</div>
+                <div className="text-[10px] text-accent-muted mt-1">{volCredits} Credits</div>
+              </div>
+
+              {redeemSuccess ? (
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-sm text-green-400 font-medium text-center flex flex-col items-center gap-2">
+                  <CheckCircle2 size={24} />
+                  Redemption requested successfully! It will be processed soon.
+                </div>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <label className="block text-[10px] text-accent-dim font-bold uppercase tracking-widest mb-2">UPI ID</label>
+                    <input
+                      type="text"
+                      value={upiId}
+                      onChange={(e) => { setUpiId(e.target.value); setRedeemError(""); }}
+                      placeholder="e.g. 9876543210@ybl"
+                      className="w-full px-4 py-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.1] text-sm text-foreground focus:outline-none focus:border-foreground/30 focus:ring-1 focus:ring-foreground/20 transition-all"
+                    />
+                    {redeemError && (
+                      <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+                        <XCircle size={12} /> {redeemError}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <button onClick={handleRedeem} disabled={volCredits <= 0 || !upiId.trim() || isRedeeming} className="w-full h-11 rounded-xl bg-green-500 text-black font-bold text-sm flex items-center justify-center gap-2 hover:bg-green-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                    {isRedeeming ? "Processing..." : `Withdraw ₹${volCredits * 100}`}
+                  </button>
+                </>
+              )}
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
