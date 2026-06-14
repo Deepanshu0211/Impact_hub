@@ -115,11 +115,12 @@ const matchSchema: Schema = {
   required: ["matches"]
 };
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
+const genAI = new GoogleGenerativeAI(geminiKey);
 
 // Server-side geocoding using Google Maps REST API
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
   if (!apiKey || !location || location === "Unknown Location") return null;
   try {
     const encoded = encodeURIComponent(location + ", India");

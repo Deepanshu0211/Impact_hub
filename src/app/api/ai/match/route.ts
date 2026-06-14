@@ -57,7 +57,8 @@ const matchRouteSchema: Schema = {
   required: ["recommended_volunteers", "team_composition_notes", "coverage_gaps", "dispatch_priority_order"]
 };
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
+const genAI = new GoogleGenerativeAI(geminiKey);
 
 export async function POST(req: Request) {
   try {
