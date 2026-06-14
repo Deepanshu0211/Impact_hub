@@ -141,7 +141,7 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lng: nu
 
 export async function POST(req: Request) {
   try {
-    const { text, reporter_name, reporter_mobile, preview_only, edited_data } = await req.json();
+    const { text, reporter_name, reporter_mobile, preview_only, edited_data, client_lat, client_lng } = await req.json();
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Missing 'text' field" }, { status: 400 });
     }
@@ -312,7 +312,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       const incidentId = incidentRef.id;
       
       // Server-side geocoding for accurate map pins
-      const coords = await geocodeLocation(parsed.location || "");
+      let coords = null;
+      if (client_lat !== undefined && client_lng !== undefined) {
+        coords = { lat: Number(client_lat), lng: Number(client_lng) };
+        console.log(`[SERVER LOCATION] Using precise client coordinates: ${coords.lat}, ${coords.lng}`);
+      } else {
+        coords = await geocodeLocation(parsed.location || "");
+      }
 
       const incidentData = {
         id: incidentId,

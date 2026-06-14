@@ -88,6 +88,7 @@ export default function EmergencyPage() {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [lastSubmittedAt, setLastSubmittedAt] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<VerificationResult>(null);
+  const [clientLocation, setClientLocation] = useState<{lat: number, lng: number} | null>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -210,6 +211,26 @@ export default function EmergencyPage() {
 
     setIsSubmitting(true);
 
+    const getPreciseLocation = (): Promise<{lat: number, lng: number} | null> => {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (err) => {
+            console.warn("Geolocation error:", err);
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    };
+
+    let loc = clientLocation;
+    if (!loc) {
+      loc = await getPreciseLocation();
+      if (loc) setClientLocation(loc);
+    }
+
     try {
       const incidentText = `${location.trim()}. ${combinedText || "Emergency report submitted with image evidence."}`.trim();
       const submittedAt = new Date().toLocaleString("en-IN", {
@@ -249,6 +270,8 @@ export default function EmergencyPage() {
             text: incidentText,
             reporter_name: reporterName.trim(),
             reporter_mobile: reporterMobile.trim(),
+            client_lat: loc?.lat,
+            client_lng: loc?.lng
           }),
         });
       }

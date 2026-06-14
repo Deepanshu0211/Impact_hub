@@ -32,6 +32,7 @@ export default function UserReportPage() {
   // Preview/Edit state
   const [previewData, setPreviewData] = useState<AIPreviewData | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [clientLocation, setClientLocation] = useState<{lat: number, lng: number} | null>(null);
 
   const { user } = useAuth();
 
@@ -56,12 +57,32 @@ export default function UserReportPage() {
     }
   };
 
+  const getPreciseLocation = (): Promise<{lat: number, lng: number} | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => {
+          console.warn("Geolocation error:", err);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportText.trim()) return;
     
     setIsSubmitting(true);
     setSubmitError("");
+
+    let loc = clientLocation;
+    if (!loc) {
+      loc = await getPreciseLocation();
+      if (loc) setClientLocation(loc);
+    }
     
     try {
       const idToken = await user?.getIdToken();
@@ -108,7 +129,9 @@ export default function UserReportPage() {
           edited_data: {
             ...previewData,
             credits_reward: 0
-          } 
+          },
+          client_lat: clientLocation?.lat,
+          client_lng: clientLocation?.lng
         })
       });
       
