@@ -708,7 +708,7 @@ graph TD
     subgraph Backend [Firebase Backend]
         Auth[Firebase Auth]
         DB[(Firestore Database)]
-        Security Rules[Security Rules]
+        SecurityRules[Security Rules]
         Storage[Storage Buckets]
         Edge[Cloud Functions]
         RT[Realtime Engine]
@@ -732,9 +732,9 @@ graph TD
     RPC <--> Storage
     WS <--> RT
     
-    Auth <--> Security Rules
-    DB <--> Security Rules
-    Storage <--> Security Rules
+    Auth <--> SecurityRules
+    DB <--> SecurityRules
+    Storage <--> SecurityRules
     
     RT <--> DB
     Edge <--> Push
