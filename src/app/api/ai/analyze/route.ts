@@ -1,12 +1,126 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const analyzeSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    is_relevant: {
+      type: SchemaType.BOOLEAN,
+      description: "Is this report about a real disaster, humanitarian crisis, or community emergency?"
+    },
+    rejection_reason: {
+      type: SchemaType.STRING,
+      description: "If is_relevant is false, explain why in one sentence. If relevant, set to null",
+      nullable: true
+    },
+    phone_valid: {
+      type: SchemaType.BOOLEAN,
+      description: "Does the phone number look like a real, reachable number?"
+    },
+    phone_issue: {
+      type: SchemaType.STRING,
+      description: "If phone_valid is false, explain why in one sentence. If valid, set to null",
+      nullable: true
+    },
+    location: {
+      type: SchemaType.STRING,
+      description: "Extracted location or 'Unknown'"
+    },
+    resource_needed: {
+      type: SchemaType.STRING,
+      description: "What resource/help is needed",
+      nullable: true
+    },
+    priority: {
+      type: SchemaType.STRING,
+      format: "enum",
+      description: "CRITICAL or HIGH or NORMAL based on urgency",
+      enum: ["CRITICAL", "HIGH", "NORMAL"]
+    },
+    affected_count: {
+      type: SchemaType.STRING,
+      description: "Number of people affected or 'Unknown'"
+    },
+    category: {
+      type: SchemaType.STRING,
+      format: "enum",
+      description: "One of: Water, Medical, Food, Shelter, Evacuation, Infrastructure, Other",
+      enum: ["Water", "Medical", "Food", "Shelter", "Evacuation", "Infrastructure", "Other"]
+    },
+    summary: {
+      type: SchemaType.STRING,
+      description: "One-line summary of the situation"
+    },
+    recommended_action: {
+      type: SchemaType.STRING,
+      description: "What action should be taken immediately"
+    },
+    volunteers_needed: {
+      type: SchemaType.STRING,
+      description: "A number representing how many volunteers are needed based on severity (e.g., 5, 10, 50)"
+    },
+    confidence_score: {
+      type: SchemaType.INTEGER,
+      description: "A number 0-100 representing extraction confidence"
+    }
+  },
+  required: [
+    "is_relevant",
+    "rejection_reason",
+    "phone_valid",
+    "phone_issue",
+    "location",
+    "resource_needed",
+    "priority",
+    "affected_count",
+    "category",
+    "summary",
+    "recommended_action",
+    "volunteers_needed",
+    "confidence_score"
+  ]
+};
+
+const matchSchema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    matches: {
+      type: SchemaType.ARRAY,
+      description: "List of matched volunteers with a score of 50 or higher",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: {
+            type: SchemaType.STRING,
+            description: "The volunteer's UUID exactly as provided in the input"
+          },
+          name: {
+            type: SchemaType.STRING,
+            description: "The volunteer's name"
+          },
+          score: {
+            type: SchemaType.INTEGER,
+            description: "A score from 0-100 representing how well the volunteer's skills/location match the incident"
+          },
+          reason: {
+            type: SchemaType.STRING,
+            description: "A short reason why they are a good match"
+          }
+        },
+        required: ["id", "name", "score", "reason"]
+      }
+    }
+  },
+  required: ["matches"]
+};
+
+const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
+const genAI = new GoogleGenerativeAI(geminiKey);
 
 // Server-side geocoding using Google Maps REST API
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
   if (!apiKey || !location || location === "Unknown Location") return null;
   try {
     const encoded = encodeURIComponent(location + ", India");
@@ -68,7 +182,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      let model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      let model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: analyzeSchema
+        }
+      });
       let usedModel = "gemini-2.5-flash";
 
       const prompt = `You are an emergency response NLP engine for "Impact Hub" — a humanitarian disaster relief and community impact platform. Your job is to:
@@ -105,7 +225,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         result = await model.generateContent(prompt);
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
-          model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+          model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: analyzeSchema
+            }
+          });
           usedModel = "gemini-2.5-flash-lite";
           result = await model.generateContent(prompt);
         } else { throw e; }
@@ -332,7 +458,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
 
             const validVolunteerIds = new Set(volList.map((v: any) => v.id));
 
-            let matchModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+            let matchModel = genAI.getGenerativeModel({
+              model: "gemini-2.5-flash-lite",
+              generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: matchSchema
+              }
+            });
             const matchPrompt = `You are a volunteer matching AI. Given this incident and volunteers, identify the best matches.
 
 Incident: { "location": "${parsed.location}", "type": "${parsed.category}", "priority": "${parsed.priority}", "affected": "${parsed.affected_count}", "description": "${parsed.summary}" }

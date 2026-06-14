@@ -2,9 +2,17 @@ import { getApps, initializeApp, cert, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
-const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const projectId = process.env.FIREBASE_PROJECT_ID;
+const sanitizeEnvVar = (val: string | undefined) => {
+  if (!val) return val;
+  return val.replace(/^['"]|['"]$/g, "").trim();
+};
+
+const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+const privateKey = rawPrivateKey
+  ? rawPrivateKey.replace(/^['"]|['"]$/g, "").replace(/\\n/g, "\n")
+  : undefined;
+const clientEmail = sanitizeEnvVar(process.env.FIREBASE_CLIENT_EMAIL);
+const projectId = sanitizeEnvVar(process.env.FIREBASE_PROJECT_ID);
 
 const isKeyValid = !!(
   privateKey &&
@@ -19,7 +27,7 @@ const app = getApps().length === 0
             credential: cert({
               projectId: projectId,
               clientEmail: clientEmail,
-              privateKey: privateKey.replace(/\\n/g, "\n"),
+              privateKey: privateKey,
             }),
           }
         : {
