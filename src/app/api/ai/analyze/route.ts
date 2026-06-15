@@ -126,22 +126,42 @@ const genAI = new GoogleGenerativeAI(geminiKey);
 // Server-side geocoding using Google Maps REST API
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
   const apiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
-  if (!apiKey || !location || location === "Unknown Location") return null;
+  if (!location || location === "Unknown Location") return null;
+
+  const encoded = encodeURIComponent(location + ", India");
+
+  if (apiKey) {
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${apiKey}`);
+      const data = await res.json();
+      if (data.status === "OK" && data.results?.length > 0) {
+        const { lat, lng } = data.results[0].geometry.location;
+        console.log(`[SERVER GEOCODE Google] ${location} => ${lat}, ${lng}`);
+        return { lat, lng };
+      }
+      console.warn(`[SERVER GEOCODE Google] No results/error for: ${location}, status: ${data.status}`);
+    } catch (err) {
+      console.error(`[SERVER GEOCODE Google] Failed for: ${location}`, err);
+    }
+  }
+
+  // Fallback to Free Nominatim (OpenStreetMap)
   try {
-    const encoded = encodeURIComponent(location + ", India");
-    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${apiKey}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'ImpactHubApp/1.0' }
+    });
     const data = await res.json();
-    if (data.status === "OK" && data.results?.length > 0) {
-      const { lat, lng } = data.results[0].geometry.location;
-      console.log(`[SERVER GEOCODE] ${location} => ${lat}, ${lng}`);
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      console.log(`[SERVER GEOCODE Nominatim] ${location} => ${lat}, ${lng}`);
       return { lat, lng };
     }
-    console.warn(`[SERVER GEOCODE] No results for: ${location}, status: ${data.status}`);
-    return null;
   } catch (err) {
-    console.error(`[SERVER GEOCODE] Failed for: ${location}`, err);
-    return null;
+    console.error(`[SERVER GEOCODE Nominatim] Failed for: ${location}`, err);
   }
+
+  return null;
 }
 
 export async function POST(req: Request) {

@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Mail, ArrowUpRight, Sparkles, Heart } from "lucide-react";
+import { Mail, ArrowUpRight, Sparkles, Heart, Check } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 
 const footerLinks = {
   Product: [
@@ -30,6 +33,28 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes("@")) return;
+
+    setStatus("loading");
+    try {
+      await addDoc(collection(db, "subscribers"), {
+        email,
+        subscribedAt: serverTimestamp(),
+        source: "footer_newsletter"
+      });
+      setStatus("success");
+      setEmail("");
+      setTimeout(() => setStatus("idle"), 5000);
+    } catch (err) {
+      console.error("Subscription failed:", err);
+      setStatus("error");
+    }
+  };
   return (
     <footer className="relative overflow-hidden">
       {/* Top Gradient Divider */}
@@ -57,16 +82,35 @@ export default function Footer() {
                 </h3>
                 <p className="text-sm text-accent-muted">Get updates on new features, case studies, and impact reports.</p>
               </div>
-              <div className="flex w-full md:w-auto gap-2">
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  className="flex-1 md:w-64 px-4 py-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] text-sm text-foreground placeholder:text-accent-dim focus:outline-none focus:border-foreground/20 focus:bg-foreground/[0.06] transition-all"
-                />
-                <button className="px-6 py-3 rounded-full border border-foreground/25 text-sm font-medium text-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all active:scale-[0.98] whitespace-nowrap">
-                  Subscribe
+              <form onSubmit={handleSubscribe} className="flex w-full md:w-auto gap-2 relative">
+                <div className="relative flex-1 md:w-64">
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={status === "loading" || status === "success"}
+                    className={`w-full px-4 py-3 rounded-xl bg-foreground/[0.04] border ${status === "error" ? "border-red-500/50" : "border-foreground/[0.08]"} text-sm text-foreground placeholder:text-accent-dim focus:outline-none focus:border-foreground/20 focus:bg-foreground/[0.06] transition-all disabled:opacity-50`}
+                    required
+                  />
+                  {status === "error" && (
+                    <span className="absolute -bottom-5 left-2 text-[10px] text-red-500">Failed to subscribe. Try again.</span>
+                  )}
+                </div>
+                <button 
+                  type="submit"
+                  disabled={status === "loading" || status === "success"}
+                  className="px-6 py-3 rounded-full border border-foreground/25 text-sm font-medium text-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all active:scale-[0.98] whitespace-nowrap disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center min-w-[110px]"
+                >
+                  {status === "loading" ? (
+                    <span className="animate-pulse">Sending...</span>
+                  ) : status === "success" ? (
+                    <span className="flex items-center gap-1.5 text-green-500"><Check size={16} /> Done</span>
+                  ) : (
+                    "Subscribe"
+                  )}
                 </button>
-              </div>
+              </form>
             </div>
           </motion.div>
 

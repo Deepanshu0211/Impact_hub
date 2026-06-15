@@ -26,9 +26,9 @@ export default function Home() {
         <HorizontalScrollSection />
         <MobileAppSection />
         <SMSFallbackSection />
+        <TestimonialsSection />
         <LiveDemoSection />
         <ImpactSection />
-        <TestimonialsSection />
         <RoadmapSection />
         <FinalCTASection />
         <Footer />

@@ -162,6 +162,7 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
         if (!inc.lat && !inc.lng) {
           const key = (inc.location || "").toLowerCase().trim();
           if (!geocodeCache[key]) {
+            let success = false;
             try {
               console.log(`[GEOCODER] Starting geocode for: ${inc.location}`);
               const response = await geocoder.geocode({ address: inc.location + ", India" });
@@ -169,6 +170,7 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
               if (response.results && response.results.length > 0) {
                 const loc = response.results[0].geometry.location;
                 geocodeCache[key] = [loc.lat(), loc.lng()];
+                success = true;
               } else {
                 console.warn(`[GEOCODER] ZERO_RESULTS for ${inc.location}`);
               }
@@ -177,6 +179,25 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
               if (err?.code === 'REQUEST_DENIED' || err?.message?.includes('Billing')) {
                 console.error("[GEOCODER] CRITICAL: Google Maps API requires a Billing Account with a credit card to use the Geocoding API! See: https://console.cloud.google.com/project/_/billing/enable");
               }
+            }
+
+            if (!success) {
+              console.log(`[GEOCODER] Attempting Nominatim fallback for: ${inc.location}`);
+              try {
+                const encoded = encodeURIComponent(inc.location + ", India");
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                  geocodeCache[key] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                  console.log(`[GEOCODER Nominatim] Success for ${inc.location}`);
+                  success = true;
+                }
+              } catch (nomErr) {
+                console.error(`[GEOCODER Nominatim] Failed for: ${inc.location}`, nomErr);
+              }
+            }
+
+            if (!success) {
               // Store fallback so we don't keep trying
               geocodeCache[key] = getFallbackCoords(inc.id ? inc.id.charCodeAt(0) : 0);
             }

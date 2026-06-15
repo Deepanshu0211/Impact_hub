@@ -53,36 +53,19 @@ export default function TestimonialsSection() {
             className="lg:col-span-7 flex flex-col h-full"
           >
             <div className="relative group overflow-hidden rounded-3xl border border-foreground/10 bg-foreground/5 shadow-2xl aspect-video w-full flex-grow flex items-center justify-center cursor-pointer transition-all duration-500 hover:border-foreground/20 hover:shadow-[0_0_40px_var(--glow-color)]">
-              {/* NOTE: Placeholder for video. Once color graded, add src attribute to the video tag below and remove placeholder UI */}
-              
-              <div className="absolute inset-0 bg-gradient-to-tr from-foreground/10 to-transparent pointer-events-none" />
-              
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 transition-transform duration-500 group-hover:scale-[1.02]">
-                <div className="w-16 h-16 rounded-full bg-foreground/10 backdrop-blur-md flex items-center justify-center border border-foreground/20 mb-4 group-hover:bg-foreground/20 transition-colors duration-300 shadow-[0_0_20px_var(--glow-color)]">
-                  <Play className="w-6 h-6 text-foreground ml-1" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Video Testimonial Space</h3>
-                <p className="text-sm text-foreground/50 max-w-md">
-                  (Placeholder: Upload your color-graded video here. Replace this block with your video tag or component.)
-                </p>
-              </div>
-
-              {/* Video Element - Hidden for now until src is provided */}
-              {/* 
-              <video 
-                className="absolute inset-0 w-full h-full object-cover"
-                controls
-                playsInline
-                src="/path/to/your/color-graded-video.mp4" 
-              >
-                Your browser does not support the video tag.
-              </video> 
-              */}
+              <iframe
+                className="absolute inset-0 w-full h-full object-cover z-20"
+                src="https://www.youtube.com/embed/QPQTFdL1JOE?autoplay=0"
+                title="Video Testimonial"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
             </div>
             <div className="mt-6 px-2 flex items-center justify-between">
               <div>
-                <h4 className="font-bold text-lg">Dr. Ananya Sharma</h4>
-                <p className="text-sm text-accent-muted">Chief Medical Officer, Crisis Relief Network</p>
+                <h4 className="font-bold text-lg">Farhan Alam</h4>
+                <p className="text-sm text-accent-muted">Manager, PRIM ROSE SHIKSHA SANSTHAN</p>
               </div>
               <div className="text-xs text-foreground/40 font-mono tracking-widest uppercase">
                 Featured Story

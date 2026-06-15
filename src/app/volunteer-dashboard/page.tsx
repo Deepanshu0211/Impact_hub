@@ -606,6 +606,14 @@ function VolunteerDashboardInner() {
                       <div className="text-xs text-accent-dim flex items-center gap-1.5">
                         <MapPin size={12} className="text-accent-muted" />
                         {a.incident?.type || "Mission"} • <span className="font-mono">{a.incident?.affected} affected</span>
+                        {a.incident?.credits_reward > 0 && (
+                          <>
+                            <span className="text-accent-muted">•</span>
+                            <span className="text-yellow-500 flex items-center gap-1 font-bold">
+                              <Sparkles size={10} /> {a.incident.credits_reward} Credits
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full border ${
@@ -710,6 +718,11 @@ function VolunteerDashboardInner() {
                             {volunteersNeeded > 0 && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isFull ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
                                 {volunteersApplied} / {volunteersNeeded} Volunteers
+                              </span>
+                            )}
+                            {mission.credits_reward > 0 && (
+                              <span className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+                                <Sparkles size={10} /> {mission.credits_reward} Credits
                               </span>
                             )}
                           </div>
