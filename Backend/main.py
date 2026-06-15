@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 import firebase_admin
 from firebase_admin import credentials, firestore
+import datetime
 
 # 1. Load the secrets from your .env file
 load_dotenv()
@@ -61,7 +62,10 @@ async def handle_sms(payload: SMSPayload):
         
         structured_data = json.loads(response.text)
         
+        doc_ref = db.collection("incidents").document()
+        
         incident_data = {
+            "id": doc_ref.id,
             "location": structured_data.get("location", "Unknown"),
             "type": structured_data.get("type", "Other"),
             "priority": structured_data.get("priority", "HIGH"),
@@ -69,10 +73,10 @@ async def handle_sms(payload: SMSPayload):
             "affected": str(structured_data.get("affected", "Unknown")),
             "description": payload.message,
             "volunteers_needed": structured_data.get("volunteers_needed", 0),
-            "resources_needed": structured_data.get("resources_needed", "None")
+            "resources_needed": structured_data.get("resources_needed", "None"),
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
         }
         
-        doc_ref = db.collection("incidents").document()
         doc_ref.set(incident_data)
         
         return {

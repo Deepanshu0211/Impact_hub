@@ -206,7 +206,7 @@ function DashboardLayoutInner({ children, role }: DashboardLayoutProps) {
 
       {/* Floating Bottom Navigation - Rendered as a Portal to be completely independent */}
       {mounted && createPortal(
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] w-full max-w-3xl px-4 pointer-events-none">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-full max-w-3xl px-4 pointer-events-none">
           <div className="bg-background/85 backdrop-blur-xl border border-foreground/10 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-2 flex items-center justify-between pointer-events-auto gap-1">
             {links.map((link) => {
               const isActive = pathname === link.href;
