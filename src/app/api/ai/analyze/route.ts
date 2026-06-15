@@ -121,9 +121,20 @@ const matchSchema: Schema = {
 };
 
 // Initialize Vertex AI
+const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+const privateKey = rawPrivateKey
+  ? rawPrivateKey.replace(/^['"]|['"]$/g, "").replace(/\\n/g, "\n")
+  : undefined;
+
 const vertex_ai = new VertexAI({
   project: process.env.FIREBASE_PROJECT_ID || 'impacthub-567ce',
-  location: 'us-central1'
+  location: 'us-central1',
+  googleAuthOptions: (process.env.FIREBASE_CLIENT_EMAIL && privateKey) ? {
+    credentials: {
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      private_key: privateKey,
+    }
+  } : undefined
 });
 const genAI = vertex_ai;
 
