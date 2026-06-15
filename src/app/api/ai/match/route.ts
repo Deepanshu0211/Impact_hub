@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
+import { VertexAI, SchemaType, Schema } from "@google-cloud/vertexai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
 
@@ -57,8 +57,12 @@ const matchRouteSchema: Schema = {
   required: ["recommended_volunteers", "team_composition_notes", "coverage_gaps", "dispatch_priority_order"]
 };
 
-const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
-const genAI = new GoogleGenerativeAI(geminiKey);
+// Initialize Vertex AI
+const vertex_ai = new VertexAI({
+  project: process.env.FIREBASE_PROJECT_ID || 'impacthub-567ce',
+  location: 'us-central1'
+});
+const genAI = vertex_ai;
 
 export async function POST(req: Request) {
   try {
@@ -156,7 +160,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         }
       }
 
-      const responseText = result.response.text();
+      const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 

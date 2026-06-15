@@ -75,7 +75,8 @@ test-*.js
 check-*.js
 seed-*.js
 update-*.js
-
+test_gemini.js
+test_geocode.js
 # SQL schema and migration dumps
 *.sql
 *migration*.sql

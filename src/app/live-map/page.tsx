@@ -218,41 +218,39 @@ function MapInner({ incidents, filter, selectedIncident, setSelectedIncident }: 
   const filtered = filter === "all" ? incidents : incidents.filter(i => i.priority === filter);
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
-      <div className="absolute inset-0" style={{ background: "#09090b" }}>
-        <Map
-          defaultCenter={{ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }}
-          defaultZoom={DEFAULT_ZOOM}
-          styles={MAP_STYLES}
-          disableDefaultUI={true}
-          zoomControl={true}
-          gestureHandling="greedy"
-        >
-          {filtered.map((inc, i) => {
-            const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
-            const intensity = inc.priority === "CRITICAL" ? 1.0 : inc.priority === "HIGH" ? 0.7 : 0.4;
-            const heatColor = intensity >= 0.9 ? "#dc2626" : intensity >= 0.6 ? "#d97706" : "#22c55e";
+    <div className="absolute inset-0" style={{ background: "#09090b" }}>
+      <Map
+        defaultCenter={{ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }}
+        defaultZoom={DEFAULT_ZOOM}
+        styles={MAP_STYLES}
+        disableDefaultUI={true}
+        zoomControl={true}
+        gestureHandling="greedy"
+      >
+        {filtered.map((inc, i) => {
+          const [lat, lng] = getCoords(inc.location, inc.lat, inc.lng, i);
+          const intensity = inc.priority === "CRITICAL" ? 1.0 : inc.priority === "HIGH" ? 0.7 : 0.4;
+          const heatColor = intensity >= 0.9 ? "#dc2626" : intensity >= 0.6 ? "#d97706" : "#22c55e";
 
-            return (
-              <div key={`wrapper-${inc.id}`}>
-                <IncidentMarker
-                  inc={inc}
-                  i={i}
-                  selectedIncident={selectedIncident}
-                  setSelectedIncident={setSelectedIncident}
-                />
-                <MapCircle
-                  center={{ lat, lng }}
-                  radius={15000 * intensity}
-                  fillColor={heatColor}
-                  fillOpacity={0.06 * intensity}
-                />
-              </div>
-            );
-          })}
-        </Map>
-      </div>
-    </APIProvider>
+          return (
+            <div key={`wrapper-${inc.id}`}>
+              <IncidentMarker
+                inc={inc}
+                i={i}
+                selectedIncident={selectedIncident}
+                setSelectedIncident={setSelectedIncident}
+              />
+              <MapCircle
+                center={{ lat, lng }}
+                radius={15000 * intensity}
+                fillColor={heatColor}
+                fillOpacity={0.06 * intensity}
+              />
+            </div>
+          );
+        })}
+      </Map>
+    </div>
   );
 }
 
@@ -352,51 +350,52 @@ export default function LiveMapPage() {
 
   return (
     <DashboardLayout role="admin">
-      {/* Use fixed positioning to escape DashboardLayout's overflow-hidden and padding */}
-      <div className="fixed inset-0 top-14 w-full z-0">
-        {/* Map Area */}
-        <div className="absolute inset-0 bg-background overflow-hidden font-helvetica">
-          <MapInner
-            incidents={incidents}
-            filter={filter}
-            selectedIncident={selectedIncident}
-            setSelectedIncident={setSelectedIncident}
-          />
+      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
+        {/* Use fixed positioning to escape DashboardLayout's overflow-hidden and padding */}
+        <div className="fixed inset-0 top-14 w-full z-0">
+          {/* Map Area */}
+          <div className="absolute inset-0 bg-background overflow-hidden font-helvetica">
+            <MapInner
+              incidents={incidents}
+              filter={filter}
+              selectedIncident={selectedIncident}
+              setSelectedIncident={setSelectedIncident}
+            />
 
-          {/* Stats Overlay */}
-          <div className="absolute top-4 left-4 flex gap-2 z-[1000]">
-            {[
-              { l: "Processing", v: incidents.filter(i => i.status === "Processing" || i.status === "Active").length },
-              { l: "Dispatched", v: incidents.filter(i => i.status === "In Transit").length },
-              { l: "Resolved", v: incidents.filter(i => i.status === "Resolved").length }
-            ].map(s => (
-              <div key={s.l} className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-center">
-                <div className="text-sm font-bold">{s.v}</div>
-                <div className="text-[9px] text-accent-dim">{s.l}</div>
+            {/* Stats Overlay */}
+            <div className="absolute top-4 left-4 flex gap-2 z-[1000]">
+              {[
+                { l: "Processing", v: incidents.filter(i => i.status === "Processing" || i.status === "Active").length },
+                { l: "Dispatched", v: incidents.filter(i => i.status === "In Transit").length },
+                { l: "Resolved", v: incidents.filter(i => i.status === "Resolved").length }
+              ].map(s => (
+                <div key={s.l} className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-center">
+                  <div className="text-sm font-bold">{s.v}</div>
+                  <div className="text-[9px] text-accent-dim">{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Toggle sidebar button (mobile) */}
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="absolute top-4 right-4 z-[1000] sm:hidden bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-xs font-bold"
+            >
+              {showSidebar ? "Hide" : "Feed"}
+            </button>
+
+            {/* Heatmap Legend — positioned above bottom nav */}
+            <div className="absolute top-2 right-82 z-[1000] flex gap-3">
+              <div className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg p-3 text-xs space-y-1.5">
+                <div className="text-accent-dim font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Flame size={10} /> Heatmap Legend
+                </div>
+                <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_6px_rgba(220,38,38,0.5)]" /> Critical</div>
+                <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> High</div>
+                <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Normal</div>
               </div>
-            ))}
-          </div>
-
-          {/* Toggle sidebar button (mobile) */}
-          <button
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="absolute top-4 right-4 z-[1000] sm:hidden bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg px-3 py-2 text-xs font-bold"
-          >
-            {showSidebar ? "Hide" : "Feed"}
-          </button>
-
-          {/* Heatmap Legend — positioned above bottom nav */}
-          <div className="absolute top-2 right-82 z-[1000] flex gap-3">
-            <div className="bg-background/80 backdrop-blur-md border border-foreground/10 rounded-lg p-3 text-xs space-y-1.5">
-              <div className="text-accent-dim font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <Flame size={10} /> Heatmap Legend
-              </div>
-              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_6px_rgba(220,38,38,0.5)]" /> Critical</div>
-              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> High</div>
-              <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Normal</div>
             </div>
           </div>
-        </div>
 
         {/* Sidebar */}
         <div className={`absolute top-0 right-0 ${showSidebar ? 'w-80' : 'w-0'} h-full flex flex-col bg-background/95 backdrop-blur-xl border-l border-foreground/[0.06] transition-all duration-300 z-[100]`}>
@@ -475,6 +474,7 @@ export default function LiveMapPage() {
           </div>
         </div>
       </div>
+      </APIProvider>
 
       <style jsx global>{`
         /* Google Maps InfoWindow Customization */

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
+import { VertexAI, SchemaType, Schema } from "@google-cloud/vertexai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
 
@@ -83,8 +83,12 @@ const visionSchema: Schema = {
   ]
 };
 
-const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
-const genAI = new GoogleGenerativeAI(geminiKey);
+// Initialize Vertex AI
+const vertex_ai = new VertexAI({
+  project: process.env.FIREBASE_PROJECT_ID || 'impacthub-567ce',
+  location: 'us-central1'
+});
+const genAI = vertex_ai;
 
 // Server-side geocoding using Google Maps REST API
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
@@ -257,7 +261,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
 
       let result;
       try {
-        result = await model.generateContent(parts);
+        result = await model.generateContent({ contents: [{ role: "user", parts }] });
       } catch (e: any) {
         if (e.message?.includes("503") || e.status === 503) {
           console.warn("503 on gemini-2.5-flash, falling back to gemini-2.5-flash-lite...");
@@ -269,13 +273,13 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
             }
           });
           usedModel = "gemini-2.5-flash-lite";
-          result = await model.generateContent(parts);
+          result = await model.generateContent({ contents: [{ role: "user", parts }] });
         } else {
           throw e;
         }
       }
 
-      const responseText = result.response.text();
+      const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 

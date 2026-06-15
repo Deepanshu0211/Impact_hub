@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
+import { VertexAI, SchemaType, Schema } from "@google-cloud/vertexai";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase/admin";
 
@@ -120,8 +120,12 @@ const matchSchema: Schema = {
   required: ["matches"]
 };
 
-const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^['"]|['"]$/g, "").trim();
-const genAI = new GoogleGenerativeAI(geminiKey);
+// Initialize Vertex AI
+const vertex_ai = new VertexAI({
+  project: process.env.FIREBASE_PROJECT_ID || 'impacthub-567ce',
+  location: 'us-central1'
+});
+const genAI = vertex_ai;
 
 // Server-side geocoding using Google Maps REST API
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
@@ -263,7 +267,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
         } else { throw e; }
       }
 
-      const responseText = result.response.text();
+      const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
@@ -513,7 +517,7 @@ Return ONLY valid JSON (no markdown, no code fences):
 Only include volunteers with score >= 50. Use the EXACT id values provided.`;
 
             const matchResult = await matchModel.generateContent(matchPrompt);
-            const matchCleaned = matchResult.response.text().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const matchCleaned = (matchResult.response.candidates?.[0]?.content?.parts?.[0]?.text || "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
             const matchParsed = JSON.parse(matchCleaned);
 
             if (matchParsed.matches && Array.isArray(matchParsed.matches)) {
