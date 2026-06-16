@@ -94,7 +94,7 @@ export default function TestimonialsSection() {
                 ))}
               </div>
               <p className="text-foreground/80 italic text-sm mb-6 leading-relaxed">
-                "The unified dashboard changed everything during the monsoon floods. We coordinated 50+ volunteers in minutes instead of hours. The offline SMS fallback was a literal lifesaver when cell towers went down."
+                "We saw the demo and the SMS-to-dashboard pipeline genuinely surprised us. In flood zones, our people don't have internet. If this works as shown, it solves a problem we've had for years."
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center border border-foreground/20">
@@ -120,7 +120,7 @@ export default function TestimonialsSection() {
                 ))}
               </div>
               <p className="text-foreground/80 italic text-sm mb-6 leading-relaxed">
-                "Finally, a platform that doesn't just collect data, but makes it actionable. The real-time mapping of resources to needs has significantly optimized our response times across the district."
+                "The live heatmap during the demo was exactly what our coordination team needs. Right now we're doing this manually on Google Maps. We're eager to pilot this in our Mumbai district operations."
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center border border-foreground/20">
